@@ -1,0 +1,213 @@
+//
+// Copyright (c) 2015, 2019, Oracle and/or its affiliates. All rights reserved.
+// DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+//
+// This code is free software; you can redistribute it and/or modify it
+// under the terms of the GNU General Public License version 2 only, as
+// published by the Free Software Foundation.
+//
+// This code is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+// version 2 for more details (a copy is included in the LICENSE file that
+// accompanied this code).
+//
+// You should have received a copy of the GNU General Public License version
+// 2 along with this work; if not, write to the Free Software Foundation,
+// Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA.
+//
+// Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 USA
+// or visit www.oracle.com if you need additional information or have any
+// questions.
+//
+
+source_hpp %{
+
+#include "gc/z/c2/zBarrierSetC2.hpp"
+
+%}
+
+source %{
+
+#include "gc/z/zBarrierSetAssembler.hpp"
+
+static void z_load_barrier_slow_reg(MacroAssembler& _masm, Register dst, Address src, bool weak) {
+  assert(dst != rsp, "Invalid register");
+  assert(dst != r15, "Invalid register");
+
+  const address stub = weak ? ZBarrierSet::assembler()->load_barrier_weak_slow_stub(dst)
+                            : ZBarrierSet::assembler()->load_barrier_slow_stub(dst);
+  __ lea(dst, src);
+  __ call(RuntimeAddress(stub));
+}
+
+%}
+
+// For XMM and YMM enabled processors
+instruct zLoadBarrierSlowRegXmmAndYmm(rRegP dst, memory src, rFlagsReg cr,
+                                      rxmm0 x0, rxmm1 x1, rxmm2 x2, rxmm3 x3,
+                                      rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+                                      rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11,
+                                      rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15) %{
+  match(Set dst (LoadBarrierSlowReg src dst));
+  predicate(UseAVX <= 2 && !n->as_LoadBarrierSlowReg()->is_weak());
+
+  effect(KILL cr,
+         KILL x0, KILL x1, KILL x2, KILL x3,
+         KILL x4, KILL x5, KILL x6, KILL x7,
+         KILL x8, KILL x9, KILL x10, KILL x11,
+         KILL x12, KILL x13, KILL x14, KILL x15);
+
+  format %{ "lea $dst, $src\n\t"
+            "call #ZLoadBarrierSlowPath" %}
+
+  ins_encode %{
+    z_load_barrier_slow_reg(_masm, $dst$$Register, $src$$Address, false /* weak */);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// For ZMM enabled processors
+instruct zLoadBarrierSlowRegZmm(rRegP dst, memory src, rFlagsReg cr,
+                                rxmm0 x0, rxmm1 x1, rxmm2 x2, rxmm3 x3,
+                                rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+                                rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11,
+                                rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15,
+                                rxmm16 x16, rxmm17 x17, rxmm18 x18, rxmm19 x19,
+                                rxmm20 x20, rxmm21 x21, rxmm22 x22, rxmm23 x23,
+                                rxmm24 x24, rxmm25 x25, rxmm26 x26, rxmm27 x27,
+                                rxmm28 x28, rxmm29 x29, rxmm30 x30, rxmm31 x31) %{
+
+  match(Set dst (LoadBarrierSlowReg src dst));
+  predicate(UseAVX == 3 && !n->as_LoadBarrierSlowReg()->is_weak());
+
+  effect(KILL cr,
+         KILL x0, KILL x1, KILL x2, KILL x3,
+         KILL x4, KILL x5, KILL x6, KILL x7,
+         KILL x8, KILL x9, KILL x10, KILL x11,
+         KILL x12, KILL x13, KILL x14, KILL x15,
+         KILL x16, KILL x17, KILL x18, KILL x19,
+         KILL x20, KILL x21, KILL x22, KILL x23,
+         KILL x24, KILL x25, KILL x26, KILL x27,
+         KILL x28, KILL x29, KILL x30, KILL x31);
+
+  format %{ "lea $dst, $src\n\t"
+            "call #ZLoadBarrierSlowPath" %}
+
+  ins_encode %{
+    z_load_barrier_slow_reg(_masm, $dst$$Register, $src$$Address, false /* weak */);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// For XMM and YMM enabled processors
+instruct zLoadBarrierWeakSlowRegXmmAndYmm(rRegP dst, memory src, rFlagsReg cr,
+                                          rxmm0 x0, rxmm1 x1, rxmm2 x2, rxmm3 x3,
+                                          rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+                                          rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11,
+                                          rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15) %{
+  match(Set dst (LoadBarrierSlowReg src dst));
+  predicate(UseAVX <= 2 && n->as_LoadBarrierSlowReg()->is_weak());
+
+  effect(KILL cr,
+         KILL x0, KILL x1, KILL x2, KILL x3,
+         KILL x4, KILL x5, KILL x6, KILL x7,
+         KILL x8, KILL x9, KILL x10, KILL x11,
+         KILL x12, KILL x13, KILL x14, KILL x15);
+
+  format %{ "lea $dst, $src\n\t"
+            "call #ZLoadBarrierSlowPath" %}
+
+  ins_encode %{
+    z_load_barrier_slow_reg(_masm, $dst$$Register, $src$$Address, true /* weak */);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// For ZMM enabled processors
+instruct zLoadBarrierWeakSlowRegZmm(rRegP dst, memory src, rFlagsReg cr,
+                                    rxmm0 x0, rxmm1 x1, rxmm2 x2, rxmm3 x3,
+                                    rxmm4 x4, rxmm5 x5, rxmm6 x6, rxmm7 x7,
+                                    rxmm8 x8, rxmm9 x9, rxmm10 x10, rxmm11 x11,
+                                    rxmm12 x12, rxmm13 x13, rxmm14 x14, rxmm15 x15,
+                                    rxmm16 x16, rxmm17 x17, rxmm18 x18, rxmm19 x19,
+                                    rxmm20 x20, rxmm21 x21, rxmm22 x22, rxmm23 x23,
+                                    rxmm24 x24, rxmm25 x25, rxmm26 x26, rxmm27 x27,
+                                    rxmm28 x28, rxmm29 x29, rxmm30 x30, rxmm31 x31) %{
+
+  match(Set dst (LoadBarrierSlowReg src dst));
+  predicate(UseAVX == 3 && n->as_LoadBarrierSlowReg()->is_weak());
+
+  effect(KILL cr,
+         KILL x0, KILL x1, KILL x2, KILL x3,
+         KILL x4, KILL x5, KILL x6, KILL x7,
+         KILL x8, KILL x9, KILL x10, KILL x11,
+         KILL x12, KILL x13, KILL x14, KILL x15,
+         KILL x16, KILL x17, KILL x18, KILL x19,
+         KILL x20, KILL x21, KILL x22, KILL x23,
+         KILL x24, KILL x25, KILL x26, KILL x27,
+         KILL x28, KILL x29, KILL x30, KILL x31);
+
+  format %{ "lea $dst, $src\n\t"
+            "call #ZLoadBarrierSlowPath" %}
+
+  ins_encode %{
+    z_load_barrier_slow_reg(_masm, $dst$$Register, $src$$Address, true /* weak */);
+  %}
+  ins_pipe(pipe_slow);
+%}
+
+// Specialized versions of compareAndExchangeP that adds a keepalive that is consumed
+// but doesn't affect output.
+
+instruct z_compareAndExchangeP(
+        memory mem_ptr,
+        rax_RegP oldval, rRegP newval, rRegP keepalive,
+        rFlagsReg cr) %{
+    predicate(VM_Version::supports_cx8());
+    match(Set oldval (ZCompareAndExchangeP (Binary mem_ptr keepalive) (Binary oldval newval)));
+    effect(KILL cr);
+
+    format %{ "cmpxchgq $mem_ptr,$newval\t# "
+              "If rax == $mem_ptr then store $newval into $mem_ptr\n\t" %}
+    opcode(0x0F, 0xB1);
+    ins_encode(lock_prefix,
+            REX_reg_mem_wide(newval, mem_ptr),
+            OpcP, OpcS,
+            reg_mem(newval, mem_ptr)  // lock cmpxchg
+    );
+    ins_pipe( pipe_cmpxchg );
+%}
+
+instruct z_compareAndSwapP(rRegI res,
+                         memory mem_ptr,
+                         rax_RegP oldval, rRegP newval, rRegP keepalive,
+                         rFlagsReg cr) %{
+  predicate(VM_Version::supports_cx8());
+  match(Set res (ZCompareAndSwapP (Binary mem_ptr keepalive) (Binary oldval newval)));
+  match(Set res (ZWeakCompareAndSwapP (Binary mem_ptr keepalive) (Binary oldval newval)));
+  effect(KILL cr, KILL oldval);
+
+  format %{ "cmpxchgq $mem_ptr,$newval\t# "
+            "If rax == $mem_ptr then store $newval into $mem_ptr\n\t"
+            "sete    $res\n\t"
+            "movzbl  $res, $res" %}
+  opcode(0x0F, 0xB1);
+  ins_encode(lock_prefix,
+          REX_reg_mem_wide(newval, mem_ptr),
+          OpcP, OpcS,
+          reg_mem(newval, mem_ptr),
+          REX_breg(res), Opcode(0x0F), Opcode(0x94), reg(res), // sete
+          REX_reg_breg(res, res), // movzbl
+          Opcode(0xF), Opcode(0xB6), reg_reg(res, res));
+  ins_pipe( pipe_cmpxchg );
+%}
+
+instruct z_xchgP( memory mem, rRegP newval, rRegP keepalive) %{
+  match(Set newval (ZGetAndSetP mem (Binary newval keepalive)));
+  format %{ "XCHGQ  $newval,[$mem]" %}
+  ins_encode %{
+    __ xchgq($newval$$Register, $mem$$Address);
+  %}
+  ins_pipe( pipe_cmpxchg );
+%}

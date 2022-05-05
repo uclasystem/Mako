@@ -1,0 +1,2 @@
+#!/bin/bash
+./build/linux-x86_64-server-release/jdk/bin/java -XX:+UnlockExperimentalVMOptions -XX:+UseShenandoahGC -XX:-UseCompressedOops -Xms128M -Xmx128M -XX:SemeruEnableMemPool -XX:SemeruMemPoolMaxSize=32g -XX:SemeruMemPoolInitialSize=32g -XX:SemeruMemPoolAlignment=32M -XX:SemeruConcGCThreads=1 -XX:ParallelGCThreads=32 -XX:-UseDynamicNumberOfGCThreads -XX:ConcGCThreads=32 -XX:-ShenandoahPacing -XX:-ShenandoahConcurrentScanCodeRoots -Xnoclassgc -XX:IndirectionInitSize=512M -XX:IndirectionMaxSize=512M -XX:ShenandoahRefProcFrequency=0 Case1

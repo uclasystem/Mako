@@ -1,0 +1,517 @@
+[0.003s][warning][logging] No tag set matches selection: semeru+mem_compact. Did you mean any of the following? semeru* semeru+alloc semeru+rdma
+[0.003s][warning][logging] No tag set matches selection: semeru+mem_trace. Did you mean any of the following? semeru* semeru+alloc semeru+rdma
+[0.004s][warning][gc     ] -XX:+PrintGCDetails is deprecated. Will use -Xlog:gc* instead.
+[0.006s][info   ][gc     ] Consider -XX:+ClassUnloadingWithConcurrentMark if large pause times are observed on class-unloading sensitive workloads
+[0.010s][info   ][gc,init] Regions: 1024 x 32768K
+[0.010s][info   ][gc,init] Humongous object threshold: 32768K
+[0.010s][info   ][gc,init] Max TLAB size: 512K
+[0.010s][info   ][gc,init] GC threads: 32 parallel, 32 concurrent
+[0.010s][info   ][gc,init] Reference processing: parallel
+[0.010s][info   ][gc     ] Heuristics ergonomically sets -XX:+ExplicitGCInvokesConcurrent
+[0.010s][info   ][gc     ] Heuristics ergonomically sets -XX:+ShenandoahImplicitGCInvokesConcurrent
+[0.010s][info   ][gc,init] Shenandoah heuristics: adaptive
+[0.010s][debug  ][heap   ] reserve_semeru_memory_pool, Try to request memory 0xa00000000 from OS at 0x2000000 alignment. 
+
+[0.010s][info   ][heap   ] Successfully allocated Java heap at location 0x400000000000
+[0.011s][info   ][semeru ] reserve_semeru_memory_pool, Reset swap out array for range [0x400200000000, 0x400a00000000)
+
+[15.517s][debug  ][semeru ] after commit and memset all rdma structure space, size: 0x48000000
+range of heap: 0x400200000000 to 0x400a00000000
+[15.517s][debug  ][semeru,rdma] Reset bitmap server 0: 0x400000000000, byte_size: 0x20000000
+[15.517s][debug  ][semeru     ] _alive_table: 0x400032b00000
+[15.522s][info   ][gc,init    ] Pretouch heap: 1024 regions, 4096 bytes page
+[15.522s][info   ][gc,init    ] Initialize Shenandoah heap: 32768M initial, 32768M min, 32768M max
+[15.522s][info   ][gc,init    ] Safepointing mechanism: thread-local poll
+[15.522s][info   ][gc         ] Using Shenandoah
+Using scaled threading model. 16 processors detected, 16 threads used to drive the workload, in a possible range of [1,256000]
+[57.618s][info   ][gc         ] Trigger: Learning 1 of 5. Free (23586M) is below initial threshold (23592M)
+[57.621s][info   ][gc,ergo    ] Free: 23586M (738 regions), Max regular: 32768K, Max humongous: 24150016K, External frag: 1%, Internal frag: 0%
+[57.621s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[57.621s][info   ][gc,start   ] GC(0) Concurrent reset
+[57.621s][info   ][gc,task    ] GC(0) Using 32 of 32 workers for concurrent reset
+[57.621s][info   ][gc         ] GC(0) Concurrent reset 6875M->6875M(32768M) 0.641ms
+[57.690s][info   ][gc,start   ] GC(0) Pause Init Mark
+[57.690s][info   ][gc,task    ] GC(0) Using 32 of 32 workers for init marking
+[57.698s][debug  ][semeru     ] Pause Time for mark roots: 7.462877 ms
+[58.842s][debug  ][semeru,rdma] Flushed regions structures to mem servers.
+[58.845s][debug  ][semeru,rdma] rootobjqueue start_addr: 0x400030b00000, size: 0x1000000, root_object_queue: 0x400030b01000
+[58.845s][debug  ][semeru     ] Root Object Queue Len: 2888
+[58.845s][debug  ][semeru,rdma] cpu server flags _should_start_tracing 1
+[58.845s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[58.946s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x6
+[58.946s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[59.249s][debug  ][semeru     ] Memory Server Finishes Marking!
+[59.249s][info   ][gc         ] GC(0) Pause Init Mark 1558.775ms
+[59.249s][debug  ][semeru     ] CPU Server Finishes Initial Marking!
+[59.249s][debug  ][semeru     ] Memory Server Finishes Marking!
+[59.249s][debug  ][semeru     ] Memory Server Finishes PreClean!
+[59.249s][debug  ][semeru,rdma] Read server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[59.381s][debug  ][semeru,rdma] Read server: 0 alive_table: 0x400032b00000, byte_size: 0x10000000
+[59.450s][info   ][gc,start   ] GC(0) Pause Final Mark
+[59.450s][info   ][gc,task    ] GC(0) Using 32 of 32 workers for final marking
+[59.450s][debug  ][semeru     ] Pause Time for clear trace buffer: 0.000130 ms
+[59.450s][debug  ][semeru,rdma] after clear traced buffer
+[59.450s][debug  ][semeru     ] Pause Time for finish marking: 0.008652 ms
+[59.450s][debug  ][semeru     ] increase region: 0xd6 words: 0x4fffd
+[59.450s][debug  ][semeru     ] increase region: 0xd7 words: 0xa0000
+[59.450s][debug  ][semeru     ] Pause Time for complete liveness: 0.091671 ms
+[59.450s][debug  ][semeru     ] Pause Time for retire labs: 0.015148 ms
+[59.450s][debug  ][semeru     ] Pause Time for rebuild free set: 0.070708 ms
+[59.450s][info   ][gc,ergo    ] GC(0) Adaptive CSet Selection. Target Free: 19333M, Actual Free: 28800M, Max CSet: 1911M, Min Garbage: 0M
+[59.450s][info   ][gc,ergo    ] GC(0) Collectable Garbage: 269M (4% of total), 18M CSet, 9 CSet regions
+[59.450s][info   ][gc,ergo    ] GC(0) Immediate Garbage: 2944M (50% of total), 92 regions
+[59.450s][debug  ][semeru     ] Pause Time for choose cset: 0.250931 ms
+[59.450s][debug  ][semeru     ] Pause Time for add collectionset: 0.036077 ms
+[59.450s][debug  ][semeru     ] Pause Time before evacuate roots: 0.003261 ms
+[59.452s][debug  ][semeru     ] Pause Time during evacuate roots: 1.937139 ms
+[59.452s][debug  ][semeru     ] Pause Time after evacuate roots: 0.031043 ms
+[59.452s][debug  ][semeru     ] Total Pause Time: 2.444071 ms
+[59.462s][debug  ][semeru     ] Pause Time for update roots: 9.857341 ms
+[59.462s][debug  ][semeru     ] Finish update roots!
+[59.528s][debug  ][semeru,rdma] Flushed collection set to mem servers.
+[61.124s][debug  ][semeru,rdma] Flushed regions in collection set to mem servers.
+[61.124s][debug  ][semeru,rdma] Write server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[61.238s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x1000
+[61.239s][info   ][gc         ] GC(0) Pause Final Mark 1788.952ms
+[61.239s][debug  ][semeru     ] CPU Server Finishes Final Marking!
+[61.239s][info   ][gc,start   ] GC(0) Concurrent evacuation
+[61.239s][info   ][gc,task    ] GC(0) Using 32 of 32 workers for concurrent evacuation
+[61.314s][info   ][gc         ] GC(0) Concurrent evacuation 6901M->6901M(32768M) 75.517ms
+[61.314s][debug  ][semeru     ] Finish Evac Local!
+[61.395s][debug  ][semeru     ] Finish Evac Remote!
+[61.395s][debug  ][semeru     ] _evacuation_finished: 1
+[61.896s][info   ][gc,start   ] GC(0) Pause Final Evac
+HEAP used: 0x1af5d4180, calc_used: 0x1af5d4180
+[61.897s][debug  ][semeru     ] WholeHeapAlive: 3669 MB
+[61.897s][info   ][gc         ] GC(0) Pause Final Evac 1.517ms
+[61.898s][info   ][gc,start   ] GC(0) Concurrent cleanup
+[61.898s][info   ][gc         ] GC(0) Concurrent cleanup 6870M->3670M(32768M) 0.140ms
+[61.898s][info   ][gc,ergo    ] GC(0) Free: 26793M (839 regions), Max regular: 32768K, Max humongous: 24084480K, External frag: 13%, Internal frag: 0%
+[61.898s][info   ][gc,ergo    ] GC(0) Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[61.898s][info   ][gc,ergo    ] Free: 26793M (839 regions), Max regular: 32768K, Max humongous: 24084480K, External frag: 13%, Internal frag: 0%
+[61.898s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[88.993s][info   ][gc         ] Trigger: Learning 2 of 5. Free (23592M) is below initial threshold (23592M)
+[88.994s][info   ][gc,ergo    ] Free: 23592M (738 regions), Max regular: 32768K, Max humongous: 24084480K, External frag: 1%, Internal frag: 0%
+[88.994s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[88.994s][info   ][gc,start   ] GC(1) Concurrent reset
+[88.994s][info   ][gc,task    ] GC(1) Using 32 of 32 workers for concurrent reset
+[89.002s][info   ][gc         ] GC(1) Concurrent reset 6860M->6861M(32768M) 8.504ms
+[89.003s][info   ][gc,start   ] GC(1) Pause Init Mark
+[89.003s][info   ][gc,task    ] GC(1) Using 32 of 32 workers for init marking
+[89.008s][debug  ][semeru     ] Pause Time for mark roots: 4.689955 ms
+[90.157s][debug  ][semeru,rdma] Flushed regions structures to mem servers.
+[90.161s][debug  ][semeru,rdma] rootobjqueue start_addr: 0x400030b00000, size: 0x1000000, root_object_queue: 0x400030b01000
+[90.161s][debug  ][semeru     ] Root Object Queue Len: 2867
+[90.161s][debug  ][semeru,rdma] cpu server flags _should_start_tracing 1
+[90.161s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[90.261s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x6
+[90.261s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[90.559s][debug  ][semeru     ] Memory Server Finishes Marking!
+[90.559s][info   ][gc         ] GC(1) Pause Init Mark 1555.953ms
+[90.559s][debug  ][semeru     ] CPU Server Finishes Initial Marking!
+[90.559s][debug  ][semeru     ] Memory Server Finishes Marking!
+[90.559s][debug  ][semeru     ] Memory Server Finishes PreClean!
+[90.559s][debug  ][semeru,rdma] Read server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[90.694s][debug  ][semeru,rdma] Read server: 0 alive_table: 0x400032b00000, byte_size: 0x10000000
+[90.763s][info   ][gc,start   ] GC(1) Pause Final Mark
+[90.763s][info   ][gc,task    ] GC(1) Using 32 of 32 workers for final marking
+[90.763s][debug  ][semeru     ] Pause Time for clear trace buffer: 0.000272 ms
+[90.763s][debug  ][semeru,rdma] after clear traced buffer
+[90.763s][debug  ][semeru     ] Pause Time for finish marking: 0.006752 ms
+[90.763s][debug  ][semeru     ] increase region: 0xce words: 0x1bb81d
+[90.763s][debug  ][semeru     ] Pause Time for complete liveness: 0.066220 ms
+[90.763s][debug  ][semeru     ] Pause Time for retire labs: 0.014998 ms
+[90.763s][debug  ][semeru     ] Pause Time for rebuild free set: 0.062853 ms
+[90.763s][info   ][gc,ergo    ] GC(1) Adaptive CSet Selection. Target Free: 19333M, Actual Free: 27866M, Max CSet: 1911M, Min Garbage: 0M
+[90.764s][info   ][gc,ergo    ] GC(1) Collectable Garbage: 1141M (19% of total), 42M CSet, 37 CSet regions
+[90.764s][info   ][gc,ergo    ] GC(1) Immediate Garbage: 2042M (34% of total), 65 regions
+[90.764s][debug  ][semeru     ] Pause Time for choose cset: 0.604191 ms
+[90.764s][debug  ][semeru     ] Pause Time for add collectionset: 0.029858 ms
+[90.764s][debug  ][semeru     ] Pause Time before evacuate roots: 0.004352 ms
+[90.766s][debug  ][semeru     ] Pause Time during evacuate roots: 2.149377 ms
+[90.766s][debug  ][semeru     ] Pause Time after evacuate roots: 0.026435 ms
+[90.766s][debug  ][semeru     ] Total Pause Time: 2.964546 ms
+[90.775s][debug  ][semeru     ] Pause Time for update roots: 8.757934 ms
+[90.775s][debug  ][semeru     ] Finish update roots!
+[90.841s][debug  ][semeru,rdma] Flushed collection set to mem servers.
+[93.547s][debug  ][semeru,rdma] Flushed regions in collection set to mem servers.
+[93.547s][debug  ][semeru,rdma] Write server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[93.670s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x1000
+[93.670s][info   ][gc         ] GC(1) Pause Final Mark 2906.626ms
+[93.670s][debug  ][semeru     ] CPU Server Finishes Final Marking!
+[93.670s][info   ][gc,start   ] GC(1) Concurrent evacuation
+[93.670s][info   ][gc,task    ] GC(1) Using 32 of 32 workers for concurrent evacuation
+[93.727s][info   ][gc         ] GC(1) Concurrent evacuation 6919M->6919M(32768M) 57.196ms
+[93.727s][debug  ][semeru     ] Finish Evac Local!
+[93.818s][debug  ][semeru     ] Finish Evac Remote!
+[93.818s][debug  ][semeru     ] _evacuation_finished: 1
+[94.319s][info   ][gc,start   ] GC(1) Pause Final Evac
+HEAP used: 0x1ae7a90e8, calc_used: 0x1ae7a90e8
+[94.321s][debug  ][semeru     ] WholeHeapAlive: 3693 MB
+[94.321s][info   ][gc         ] GC(1) Pause Final Evac 2.109ms
+[94.321s][info   ][gc,start   ] GC(1) Concurrent cleanup
+[94.321s][info   ][gc         ] GC(1) Concurrent cleanup 6887M->3693M(32768M) 0.224ms
+[94.321s][info   ][gc,ergo    ] GC(1) Free: 26770M (839 regions), Max regular: 32768K, Max humongous: 24084480K, External frag: 13%, Internal frag: 0%
+[94.321s][info   ][gc,ergo    ] GC(1) Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[94.321s][info   ][gc,ergo    ] Free: 26770M (839 regions), Max regular: 32768K, Max humongous: 24084480K, External frag: 13%, Internal frag: 0%
+[94.321s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+.................................................[199.285s][info   ][gc         ] Trigger: Learning 3 of 5. Free (23592M) is below initial threshold (23592M)
+[199.285s][info   ][gc,ergo    ] Free: 23592M (740 regions), Max regular: 32768K, Max humongous: 24084480K, External frag: 1%, Internal frag: 0%
+[199.286s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[199.286s][info   ][gc,start   ] GC(2) Concurrent reset
+[199.286s][info   ][gc,task    ] GC(2) Using 32 of 32 workers for concurrent reset
+[199.294s][info   ][gc         ] GC(2) Concurrent reset 6871M->6871M(32768M) 8.810ms
+[199.295s][info   ][gc,start   ] GC(2) Pause Init Mark
+[199.295s][info   ][gc,task    ] GC(2) Using 32 of 32 workers for init marking
+[199.300s][debug  ][semeru     ] Pause Time for mark roots: 4.979663 ms
+[200.394s][debug  ][semeru,rdma] Flushed regions structures to mem servers.
+[200.397s][debug  ][semeru,rdma] rootobjqueue start_addr: 0x400030b00000, size: 0x1000000, root_object_queue: 0x400030b01000
+[200.397s][debug  ][semeru     ] Root Object Queue Len: 3195
+[200.397s][debug  ][semeru,rdma] cpu server flags _should_start_tracing 1
+[200.397s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[200.497s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x6
+[200.497s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[200.821s][debug  ][semeru     ] Memory Server Finishes Marking!
+[200.821s][info   ][gc         ] GC(2) Pause Init Mark 1525.977ms
+[200.821s][debug  ][semeru     ] CPU Server Finishes Initial Marking!
+[200.821s][debug  ][semeru     ] Memory Server Finishes Marking!
+[200.821s][debug  ][semeru     ] Memory Server Finishes PreClean!
+[200.821s][debug  ][semeru,rdma] Read server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[200.953s][debug  ][semeru,rdma] Read server: 0 alive_table: 0x400032b00000, byte_size: 0x10000000
+[201.021s][info   ][gc,start   ] GC(2) Pause Final Mark
+[201.021s][info   ][gc,task    ] GC(2) Using 32 of 32 workers for final marking
+[201.021s][debug  ][semeru     ] Pause Time for clear trace buffer: 0.000222 ms
+[201.021s][debug  ][semeru,rdma] after clear traced buffer
+[201.021s][debug  ][semeru     ] Pause Time for finish marking: 0.004347 ms
+[201.021s][debug  ][semeru     ] increase region: 0xce words: 0xd47e3
+[201.021s][debug  ][semeru     ] increase region: 0xd5 words: 0x3ff49
+[201.021s][debug  ][semeru     ] Pause Time for complete liveness: 0.061259 ms
+[201.021s][debug  ][semeru     ] Pause Time for retire labs: 0.017645 ms
+[201.021s][debug  ][semeru     ] Pause Time for rebuild free set: 0.061499 ms
+[201.021s][info   ][gc,ergo    ] GC(2) Adaptive CSet Selection. Target Free: 19333M, Actual Free: 25824M, Max CSet: 1911M, Min Garbage: 0M
+[201.022s][info   ][gc,ergo    ] GC(2) Collectable Garbage: 3149M (54% of total), 114M CSet, 102 CSet regions
+[201.022s][info   ][gc,ergo    ] GC(2) Immediate Garbage: 0M (0% of total), 0 regions
+[201.022s][debug  ][semeru     ] Pause Time for choose cset: 1.655066 ms
+[201.022s][debug  ][semeru     ] Pause Time for add collectionset: 0.028015 ms
+[201.022s][debug  ][semeru     ] Pause Time before evacuate roots: 0.008820 ms
+[201.025s][debug  ][semeru     ] Pause Time during evacuate roots: 2.275631 ms
+[201.025s][debug  ][semeru     ] Pause Time after evacuate roots: 0.022547 ms
+[201.025s][debug  ][semeru     ] Total Pause Time: 4.134559 ms
+[201.034s][debug  ][semeru     ] Pause Time for update roots: 8.801071 ms
+[201.034s][debug  ][semeru     ] Finish update roots!
+[201.100s][debug  ][semeru,rdma] Flushed collection set to mem servers.
+[202.833s][debug  ][semeru,rdma] Flushed regions in collection set to mem servers.
+[202.833s][debug  ][semeru,rdma] Write server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[202.955s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x1000
+[202.955s][info   ][gc         ] GC(2) Pause Final Mark 1934.178ms
+[202.955s][debug  ][semeru     ] CPU Server Finishes Final Marking!
+[202.955s][info   ][gc,start   ] GC(2) Concurrent evacuation
+[202.955s][info   ][gc,task    ] GC(2) Using 32 of 32 workers for concurrent evacuation
+[203.075s][info   ][gc         ] GC(2) Concurrent evacuation 6998M->6998M(32768M) 119.861ms
+[203.075s][debug  ][semeru     ] Finish Evac Local!
+[203.146s][debug  ][semeru     ] Finish Evac Remote!
+[203.146s][debug  ][semeru     ] _evacuation_finished: 1
+[203.647s][info   ][gc,start   ] GC(2) Pause Final Evac
+HEAP used: 0x1b56d7a48, calc_used: 0x1b56d7a48
+[203.647s][debug  ][semeru     ] WholeHeapAlive: 3734 MB
+[203.647s][info   ][gc         ] GC(2) Pause Final Evac 0.685ms
+[203.647s][info   ][gc,start   ] GC(2) Concurrent cleanup
+[203.648s][info   ][gc         ] GC(2) Concurrent cleanup 6998M->3734M(32768M) 0.145ms
+[203.648s][info   ][gc,ergo    ] GC(2) Free: 26729M (841 regions), Max regular: 32768K, Max humongous: 23953408K, External frag: 13%, Internal frag: 0%
+[203.648s][info   ][gc,ergo    ] GC(2) Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[203.648s][info   ][gc,ergo    ] Free: 26729M (841 regions), Max regular: 32768K, Max humongous: 23953408K, External frag: 13%, Internal frag: 0%
+[203.648s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+..................................................[307.309s][info   ][gc         ] Trigger: Learning 4 of 5. Free (23592M) is below initial threshold (23592M)
+[307.309s][info   ][gc,ergo    ] Free: 23592M (743 regions), Max regular: 32768K, Max humongous: 23953408K, External frag: 1%, Internal frag: 0%
+[307.309s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[307.309s][info   ][gc,start   ] GC(3) Concurrent reset
+[307.309s][info   ][gc,task    ] GC(3) Using 32 of 32 workers for concurrent reset
+[307.316s][info   ][gc         ] GC(3) Concurrent reset 6871M->6871M(32768M) 6.936ms
+[307.317s][info   ][gc,start   ] GC(3) Pause Init Mark
+[307.318s][info   ][gc,task    ] GC(3) Using 32 of 32 workers for init marking
+[307.322s][debug  ][semeru     ] Pause Time for mark roots: 4.417354 ms
+[308.457s][debug  ][semeru,rdma] Flushed regions structures to mem servers.
+[308.460s][debug  ][semeru,rdma] rootobjqueue start_addr: 0x400030b00000, size: 0x1000000, root_object_queue: 0x400030b01000
+[308.460s][debug  ][semeru     ] Root Object Queue Len: 3171
+[308.460s][debug  ][semeru,rdma] cpu server flags _should_start_tracing 1
+[308.460s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[308.561s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x6
+[308.561s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[308.905s][debug  ][semeru     ] Memory Server Finishes Marking!
+[308.905s][info   ][gc         ] GC(3) Pause Init Mark 1587.112ms
+[308.905s][debug  ][semeru     ] CPU Server Finishes Initial Marking!
+[308.905s][debug  ][semeru     ] Memory Server Finishes Marking!
+[308.905s][debug  ][semeru     ] Memory Server Finishes PreClean!
+[308.905s][debug  ][semeru,rdma] Read server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[309.037s][debug  ][semeru,rdma] Read server: 0 alive_table: 0x400032b00000, byte_size: 0x10000000
+[309.104s][info   ][gc,start   ] GC(3) Pause Final Mark
+[309.104s][info   ][gc,task    ] GC(3) Using 32 of 32 workers for final marking
+[309.104s][debug  ][semeru     ] Pause Time for clear trace buffer: 0.000214 ms
+[309.104s][debug  ][semeru,rdma] after clear traced buffer
+[309.104s][debug  ][semeru     ] Pause Time for finish marking: 0.008697 ms
+[309.104s][debug  ][semeru     ] increase region: 0xca words: 0xff7f0
+[309.104s][debug  ][semeru     ] Pause Time for complete liveness: 0.058180 ms
+[309.104s][debug  ][semeru     ] Pause Time for retire labs: 0.020824 ms
+[309.104s][debug  ][semeru     ] Pause Time for rebuild free set: 0.042978 ms
+[309.104s][info   ][gc,ergo    ] GC(3) Adaptive CSet Selection. Target Free: 19333M, Actual Free: 25792M, Max CSet: 1911M, Min Garbage: 0M
+[309.106s][info   ][gc,ergo    ] GC(3) Collectable Garbage: 3095M (53% of total), 104M CSet, 100 CSet regions
+[309.106s][info   ][gc,ergo    ] GC(3) Immediate Garbage: 0M (0% of total), 0 regions
+[309.106s][debug  ][semeru     ] Pause Time for choose cset: 2.127262 ms
+[309.106s][debug  ][semeru     ] Pause Time for add collectionset: 0.037701 ms
+[309.106s][debug  ][semeru     ] Pause Time before evacuate roots: 0.005946 ms
+[309.108s][debug  ][semeru     ] Pause Time during evacuate roots: 1.971561 ms
+[309.109s][debug  ][semeru     ] Pause Time after evacuate roots: 0.038987 ms
+[309.109s][debug  ][semeru     ] Total Pause Time: 4.311550 ms
+[309.119s][debug  ][semeru     ] Pause Time for update roots: 10.111868 ms
+[309.119s][debug  ][semeru     ] Finish update roots!
+[309.185s][debug  ][semeru,rdma] Flushed collection set to mem servers.
+[310.980s][debug  ][semeru,rdma] Flushed regions in collection set to mem servers.
+[310.980s][debug  ][semeru,rdma] Write server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[311.104s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x1000
+[311.104s][info   ][gc         ] GC(3) Pause Final Mark 1999.831ms
+[311.104s][debug  ][semeru     ] CPU Server Finishes Final Marking!
+[311.104s][info   ][gc,start   ] GC(3) Concurrent evacuation
+[311.104s][info   ][gc,task    ] GC(3) Using 32 of 32 workers for concurrent evacuation
+[311.292s][info   ][gc         ] GC(3) Concurrent evacuation 6988M->6988M(32768M) 188.091ms
+[311.292s][debug  ][semeru     ] Finish Evac Local!
+[311.302s][debug  ][semeru     ] Finish Evac Remote!
+[311.302s][debug  ][semeru     ] _evacuation_finished: 1
+[311.804s][info   ][gc,start   ] GC(3) Pause Final Evac
+HEAP used: 0x1b4c78898, calc_used: 0x1b4c78898
+[311.804s][debug  ][semeru     ] WholeHeapAlive: 3788 MB
+[311.804s][info   ][gc         ] GC(3) Pause Final Evac 0.750ms
+[311.804s][info   ][gc,start   ] GC(3) Concurrent cleanup
+[311.804s][info   ][gc         ] GC(3) Concurrent cleanup 6988M->3788M(32768M) 0.143ms
+[311.805s][info   ][gc,ergo    ] GC(3) Free: 26675M (843 regions), Max regular: 32768K, Max humongous: 23822336K, External frag: 13%, Internal frag: 1%
+[311.805s][info   ][gc,ergo    ] GC(3) Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[311.805s][info   ][gc,ergo    ] Free: 26675M (843 regions), Max regular: 32768K, Max humongous: 23822336K, External frag: 13%, Internal frag: 1%
+[311.805s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+................................................[414.722s][info   ][gc         ] Trigger: Learning 5 of 5. Free (23592M) is below initial threshold (23592M)
+[414.722s][info   ][gc,ergo    ] Free: 23592M (747 regions), Max regular: 32768K, Max humongous: 23822336K, External frag: 2%, Internal frag: 1%
+[414.722s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[414.722s][info   ][gc,start   ] GC(4) Concurrent reset
+[414.722s][info   ][gc,task    ] GC(4) Using 32 of 32 workers for concurrent reset
+[414.730s][info   ][gc         ] GC(4) Concurrent reset 6871M->6871M(32768M) 7.778ms
+[414.731s][info   ][gc,start   ] GC(4) Pause Init Mark
+[414.731s][info   ][gc,task    ] GC(4) Using 32 of 32 workers for init marking
+[414.737s][debug  ][semeru     ] Pause Time for mark roots: 5.776844 ms
+[415.868s][debug  ][semeru,rdma] Flushed regions structures to mem servers.
+[415.872s][debug  ][semeru,rdma] rootobjqueue start_addr: 0x400030b00000, size: 0x1000000, root_object_queue: 0x400030b01000
+[415.872s][debug  ][semeru     ] Root Object Queue Len: 3232
+[415.872s][debug  ][semeru,rdma] cpu server flags _should_start_tracing 1
+[415.872s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[415.972s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x6
+[415.972s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[416.336s][debug  ][semeru     ] Memory Server Finishes Marking!
+[416.336s][info   ][gc         ] GC(4) Pause Init Mark 1605.355ms
+[416.336s][debug  ][semeru     ] CPU Server Finishes Initial Marking!
+[416.336s][debug  ][semeru     ] Memory Server Finishes Marking!
+[416.336s][debug  ][semeru     ] Memory Server Finishes PreClean!
+[416.336s][debug  ][semeru,rdma] Read server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[416.468s][debug  ][semeru,rdma] Read server: 0 alive_table: 0x400032b00000, byte_size: 0x10000000
+[416.537s][info   ][gc,start   ] GC(4) Pause Final Mark
+[416.537s][info   ][gc,task    ] GC(4) Using 32 of 32 workers for final marking
+[416.537s][debug  ][semeru     ] Pause Time for clear trace buffer: 0.000268 ms
+[416.537s][debug  ][semeru,rdma] after clear traced buffer
+[416.537s][debug  ][semeru     ] Pause Time for finish marking: 0.004855 ms
+[416.537s][debug  ][semeru     ] increase region: 0xc7 words: 0x10f0d1
+[416.537s][debug  ][semeru     ] Pause Time for complete liveness: 0.056588 ms
+[416.537s][debug  ][semeru     ] Pause Time for retire labs: 0.019571 ms
+[416.537s][debug  ][semeru     ] Pause Time for rebuild free set: 0.063894 ms
+[416.537s][info   ][gc,ergo    ] GC(4) Adaptive CSet Selection. Target Free: 19333M, Actual Free: 25760M, Max CSet: 1911M, Min Garbage: 0M
+[416.538s][info   ][gc,ergo    ] GC(4) Collectable Garbage: 3001M (52% of total), 102M CSet, 97 CSet regions
+[416.538s][info   ][gc,ergo    ] GC(4) Immediate Garbage: 0M (0% of total), 0 regions
+[416.538s][debug  ][semeru     ] Pause Time for choose cset: 1.032580 ms
+[416.538s][debug  ][semeru     ] Pause Time for add collectionset: 0.029977 ms
+[416.538s][debug  ][semeru     ] Pause Time before evacuate roots: 0.003881 ms
+[416.540s][debug  ][semeru     ] Pause Time during evacuate roots: 1.938929 ms
+[416.540s][debug  ][semeru     ] Pause Time after evacuate roots: 0.022126 ms
+[416.540s][debug  ][semeru     ] Total Pause Time: 3.172121 ms
+[416.548s][debug  ][semeru     ] Pause Time for update roots: 7.781068 ms
+[416.548s][debug  ][semeru     ] Finish update roots!
+[416.614s][debug  ][semeru,rdma] Flushed collection set to mem servers.
+[418.315s][debug  ][semeru,rdma] Flushed regions in collection set to mem servers.
+[418.315s][debug  ][semeru,rdma] Write server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[418.434s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x1000
+[418.434s][info   ][gc         ] GC(4) Pause Final Mark 1897.599ms
+[418.434s][debug  ][semeru     ] CPU Server Finishes Final Marking!
+[418.435s][info   ][gc,start   ] GC(4) Concurrent evacuation
+[418.435s][info   ][gc,task    ] GC(4) Using 32 of 32 workers for concurrent evacuation
+[418.578s][info   ][gc         ] GC(4) Concurrent evacuation 6983M->6983M(32768M) 143.547ms
+[418.578s][debug  ][semeru     ] Finish Evac Local!
+[418.609s][debug  ][semeru     ] Finish Evac Remote!
+[418.609s][debug  ][semeru     ] _evacuation_finished: 1
+[419.110s][info   ][gc,start   ] GC(4) Pause Final Evac
+HEAP used: 0x1b47bd510, calc_used: 0x1b47bd510
+[419.110s][debug  ][semeru     ] WholeHeapAlive: 3879 MB
+[419.110s][info   ][gc         ] GC(4) Pause Final Evac 0.694ms
+[419.110s][info   ][gc,start   ] GC(4) Concurrent cleanup
+[419.111s][info   ][gc         ] GC(4) Concurrent cleanup 6983M->3879M(32768M) 0.202ms
+[419.111s][info   ][gc,ergo    ] GC(4) Free: 26584M (844 regions), Max regular: 32768K, Max humongous: 23691264K, External frag: 13%, Internal frag: 1%
+[419.111s][info   ][gc,ergo    ] GC(4) Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[419.111s][info   ][gc,ergo    ] Free: 26584M (844 regions), Max regular: 32768K, Max humongous: 23691264K, External frag: 13%, Internal frag: 1%
+[419.111s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+.............................................................................................................
+Completed 256000 transactions
+	Stock level ............. 10178 ( 4.0%)
+	Order status by name ....  6096 ( 2.4%)
+	Order status by ID ......  4109 ( 1.6%)
+	Payment by name ......... 66251 (25.9%)
+	Payment by ID ........... 43986 (17.2%)
+	Delivery schedule ....... 10282 ( 4.0%)
+	New order ...............113955 (44.5%)
+	New order rollback ......  1143 ( 0.4%)
+Resetting database to initial state
+[702.935s][info   ][gc         ] Trigger: Free (19333M) is below minimum threshold (19333M)
+[702.935s][info   ][gc,ergo    ] Free: 19333M (617 regions), Max regular: 32768K, Max humongous: 19693568K, External frag: 1%, Internal frag: 2%
+[702.935s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[702.935s][info   ][gc,start   ] GC(5) Concurrent reset
+[702.935s][info   ][gc,task    ] GC(5) Using 32 of 32 workers for concurrent reset
+[702.941s][info   ][gc         ] GC(5) Concurrent reset 11127M->11127M(32768M) 5.686ms
+[702.941s][info   ][gc,start   ] GC(5) Pause Init Mark
+[702.941s][info   ][gc,task    ] GC(5) Using 32 of 32 workers for init marking
+[702.946s][debug  ][semeru     ] Pause Time for mark roots: 4.857268 ms
+[704.232s][debug  ][semeru,rdma] Flushed regions structures to mem servers.
+[704.235s][debug  ][semeru,rdma] rootobjqueue start_addr: 0x400030b00000, size: 0x1000000, root_object_queue: 0x400030b01000
+[704.235s][debug  ][semeru     ] Root Object Queue Len: 3136
+[704.235s][debug  ][semeru,rdma] cpu server flags _should_start_tracing 1
+[704.235s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[704.335s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x6
+[704.335s][debug  ][semeru,rdma] cpu server flags _tracing_all_finished 0
+[704.791s][debug  ][semeru     ] Memory Server Finishes Marking!
+[704.791s][info   ][gc         ] GC(5) Pause Init Mark 1849.668ms
+[704.791s][debug  ][semeru     ] CPU Server Finishes Initial Marking!
+[704.791s][debug  ][semeru     ] Memory Server Finishes Marking!
+[704.791s][debug  ][semeru     ] Memory Server Finishes PreClean!
+[704.791s][debug  ][semeru,rdma] Read server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[704.924s][debug  ][semeru,rdma] Read server: 0 alive_table: 0x400032b00000, byte_size: 0x10000000
+[704.994s][info   ][gc,start   ] GC(5) Pause Final Mark
+[704.994s][info   ][gc,task    ] GC(5) Using 32 of 32 workers for final marking
+[704.994s][debug  ][semeru     ] Pause Time for clear trace buffer: 0.000313 ms
+[704.994s][debug  ][semeru,rdma] after clear traced buffer
+[704.994s][debug  ][semeru     ] Pause Time for finish marking: 0.010114 ms
+[704.994s][debug  ][semeru     ] increase region: 0x14f words: 0x29e40
+[704.994s][debug  ][semeru     ] Pause Time for complete liveness: 0.069240 ms
+[704.994s][debug  ][semeru     ] Pause Time for retire labs: 0.040250 ms
+[704.994s][debug  ][semeru     ] Pause Time for rebuild free set: 0.061831 ms
+[704.994s][info   ][gc,ergo    ] GC(5) Adaptive CSet Selection. Target Free: 19333M, Actual Free: 21536M, Max CSet: 1911M, Min Garbage: 0M
+[704.998s][info   ][gc,ergo    ] GC(5) Collectable Garbage: 6872M (70% of total), 199M CSet, 221 CSet regions
+[704.998s][info   ][gc,ergo    ] GC(5) Immediate Garbage: 0M (0% of total), 0 regions
+[704.998s][debug  ][semeru     ] Pause Time for choose cset: 4.227321 ms
+[704.999s][debug  ][semeru     ] Pause Time for add collectionset: 0.042508 ms
+[704.999s][debug  ][semeru     ] Pause Time before evacuate roots: 0.007073 ms
+[705.001s][debug  ][semeru     ] Pause Time during evacuate roots: 2.582805 ms
+[705.001s][debug  ][semeru     ] Pause Time after evacuate roots: 0.029966 ms
+[705.001s][debug  ][semeru     ] Total Pause Time: 7.070486 ms
+[705.010s][debug  ][semeru     ] Pause Time for update roots: 9.238279 ms
+[705.010s][debug  ][semeru     ] Finish update roots!
+[705.080s][debug  ][semeru,rdma] Flushed collection set to mem servers.
+[707.277s][debug  ][semeru,rdma] Flushed regions in collection set to mem servers.
+[707.277s][debug  ][semeru,rdma] Write server: 0 bitmap: 0x400000000000, byte_size: 0x20000000
+[707.401s][debug  ][semeru,rdma] cpu server flags start_addr: 0x400030801000, size: 0x1000
+[707.401s][info   ][gc         ] GC(5) Pause Final Mark 2407.095ms
+[707.401s][debug  ][semeru     ] CPU Server Finishes Final Marking!
+[707.401s][info   ][gc,start   ] GC(5) Concurrent evacuation
+[707.401s][info   ][gc,task    ] GC(5) Using 32 of 32 workers for concurrent evacuation
+[707.751s][info   ][gc         ] GC(5) Concurrent evacuation 11331M->11331M(32768M) 349.183ms
+[707.751s][debug  ][semeru     ] Finish Evac Local!
+[707.751s][debug  ][semeru     ] Finish Evac Remote!
+[707.751s][debug  ][semeru     ] _evacuation_finished: 1
+[708.251s][info   ][gc,start   ] GC(5) Pause Final Evac
+HEAP used: 0x2c432bf68, calc_used: 0x2c432bf68
+[708.253s][debug  ][semeru     ] WholeHeapAlive: 4259 MB
+[708.254s][info   ][gc         ] GC(5) Pause Final Evac 2.181ms
+[708.254s][info   ][gc,start   ] GC(5) Concurrent cleanup
+[708.254s][info   ][gc         ] GC(5) Concurrent cleanup 11331M->4259M(32768M) 0.223ms
+[708.254s][info   ][gc,ergo    ] GC(5) Free: 26204M (839 regions), Max regular: 32768K, Max humongous: 19464192K, External frag: 28%, Internal frag: 2%
+[708.254s][info   ][gc,ergo    ] GC(5) Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[708.254s][info   ][gc,ergo    ] Free: 26204M (839 regions), Max regular: 32768K, Max humongous: 19464192K, External frag: 28%, Internal frag: 2%
+[708.254s][info   ][gc,ergo    ] Evacuation Reserve: 2304M (72 regions), Max regular: 32768K
+[761.399s][info   ][gc         ] Cancelling GC: Stopping VM
+[761.401s][info   ][gc,heap,exit] Heap
+[761.401s][info   ][gc,heap,exit] Shenandoah Heap
+[761.401s][info   ][gc,heap,exit]  33554432K total, 33554432K committed, 6553602K used
+[761.401s][info   ][gc,heap,exit]  1024 x 32768K regions
+[761.401s][info   ][gc,heap,exit] Status: cancelled
+[761.401s][info   ][gc,heap,exit] Reserved region:
+[761.401s][info   ][gc,heap,exit]  - [0x0000400200000000, 0x0000400a00000000) 
+[761.401s][info   ][gc,heap,exit] Collection set:
+[761.401s][info   ][gc,heap,exit]  - map (vanilla): 0x00007f0d185eb100
+[761.401s][info   ][gc,heap,exit]  - map (biased):  0x00007f0d183eb000
+[761.401s][info   ][gc,heap,exit] 
+[761.401s][info   ][gc,heap,exit]  Metaspace       used 13097K, capacity 13337K, committed 13568K, reserved 14336K
+[761.401s][info   ][gc,stats    ] 
+[761.401s][info   ][gc,stats    ] GC STATISTICS:
+[761.401s][info   ][gc,stats    ]   "(G)" (gross) pauses include VM time: time to notify and block threads, do the pre-
+[761.401s][info   ][gc,stats    ]         and post-safepoint housekeeping. Use -XX:+PrintSafepointStatistics to dissect.
+[761.401s][info   ][gc,stats    ]   "(N)" (net) pauses are the times spent in the actual GC code.
+[761.401s][info   ][gc,stats    ]   "a" is average time for each phase, look at levels to see if average makes sense.
+[761.401s][info   ][gc,stats    ]   "lvls" are quantiles: 0% (minimum), 25%, 50% (median), 75%, 100% (maximum).
+[761.401s][info   ][gc,stats    ] 
+[761.401s][info   ][gc,stats    ] Total Pauses (G)            =    22.71 s (a =  1261433 us) (n =    18) (lvls, us =     1621,     2148,  1582031,  1835938,  2907796)
+[761.401s][info   ][gc,stats    ] Total Pauses (N)            =    22.63 s (a =  1256993 us) (n =    18) (lvls, us =      740,     1543,  1542969,  1835938,  2906639)
+[761.401s][info   ][gc,stats    ] Pause Init Mark (G)         =     9.75 s (a =  1625778 us) (n =     6) (lvls, us =  1523438,  1523438,  1582031,  1601562,  1850380)
+[761.401s][info   ][gc,stats    ] Pause Init Mark (N)         =     9.68 s (a =  1613860 us) (n =     6) (lvls, us =  1523438,  1523438,  1542969,  1582031,  1849713)
+[761.401s][info   ][gc,stats    ]   Make Parsable             =     0.00 s (a =       48 us) (n =     6) (lvls, us =       21,       21,       54,       56,       65)
+[761.401s][info   ][gc,stats    ]   Clear Liveness            =     0.00 s (a =      104 us) (n =     6) (lvls, us =       87,       87,      100,      104,      122)
+[761.401s][info   ][gc,stats    ]   Scan Roots                =     0.03 s (a =     5362 us) (n =     6) (lvls, us =     4414,     4414,     4844,     4961,     7459)
+[761.401s][info   ][gc,stats    ]     S: Thread Roots         =     0.00 s (a =       49 us) (n =     6) (lvls, us =       22,       22,       40,       54,       72)
+[761.401s][info   ][gc,stats    ]     S: Code Cache Roots     =     0.00 s (a =       78 us) (n =     6) (lvls, us =       61,       61,       69,       71,      122)
+[761.401s][info   ][gc,stats    ]     S: Universe Roots       =     0.00 s (a =      505 us) (n =     6) (lvls, us =       23,       23,       34,       65,     1611)
+[761.401s][info   ][gc,stats    ]     S: JNI Roots            =     0.01 s (a =      962 us) (n =     6) (lvls, us =       52,       52,      102,     1523,     2016)
+[761.401s][info   ][gc,stats    ]     S: Synchronizer Roots   =     0.00 s (a =        6 us) (n =     6) (lvls, us =        0,        0,        1,        1,       31)
+[761.401s][info   ][gc,stats    ]     S: Management Roots     =     0.00 s (a =        2 us) (n =     6) (lvls, us =        2,        2,        2,        2,        3)
+[761.401s][info   ][gc,stats    ]     S: System Dict Roots    =     0.01 s (a =     1253 us) (n =     6) (lvls, us =      297,      297,      686,     1680,     2598)
+[761.401s][info   ][gc,stats    ]     S: CLDG Roots           =     0.01 s (a =      859 us) (n =     6) (lvls, us =      580,      580,      826,      865,     1090)
+[761.401s][info   ][gc,stats    ]     S: JVMTI Roots          =     0.00 s (a =        1 us) (n =     6) (lvls, us =        1,        1,        1,        1,        2)
+[761.401s][info   ][gc,stats    ]   Resize TLABs              =     0.00 s (a =       16 us) (n =     6) (lvls, us =        5,        5,        9,       11,       53)
+[761.401s][info   ][gc,stats    ] Pause Final Mark (G)        =    12.94 s (a =  2156382 us) (n =     6) (lvls, us =  1777344,  1777344,  1933594,  1992188,  2907794)
+[761.401s][info   ][gc,stats    ] Pause Final Mark (N)        =    12.93 s (a =  2155736 us) (n =     6) (lvls, us =  1777344,  1777344,  1933594,  1992188,  2906639)
+[761.402s][info   ][gc,stats    ]   Complete Liveness         =     0.00 s (a =       50 us) (n =     6) (lvls, us =       36,       36,       47,       51,       73)
+[761.402s][info   ][gc,stats    ]   Prepare Evacuation        =     0.01 s (a =     1804 us) (n =     6) (lvls, us =      412,      412,     1172,     1777,     4434)
+[761.402s][info   ][gc,stats    ]   Initial Evacuation        =    12.92 s (a =  2153720 us) (n =     6) (lvls, us =  1777344,  1777344,  1914062,  1992188,  2905714)
+[761.402s][info   ][gc,stats    ]     E: Thread Roots         =     0.00 s (a =      103 us) (n =     6) (lvls, us =       33,       33,       77,      117,      169)
+[761.402s][info   ][gc,stats    ]     E: Code Cache Roots     =     0.00 s (a =       51 us) (n =     6) (lvls, us =       15,       15,       29,       31,      155)
+[761.402s][info   ][gc,stats    ]     E: Universe Roots       =     0.00 s (a =        4 us) (n =     6) (lvls, us =        4,        4,        4,        5,        5)
+[761.402s][info   ][gc,stats    ]     E: JNI Roots            =     0.00 s (a =        4 us) (n =     6) (lvls, us =        2,        2,        2,        3,        9)
+[761.402s][info   ][gc,stats    ]     E: JVMTI Weak Roots     =     0.00 s (a =        1 us) (n =     6) (lvls, us =        1,        1,        1,        1,        1)
+[761.402s][info   ][gc,stats    ]     E: JFR Weak Roots       =     0.00 s (a =        1 us) (n =     6) (lvls, us =        1,        1,        1,        1,        2)
+[761.402s][info   ][gc,stats    ]     E: JNI Weak Roots       =     0.00 s (a =        1 us) (n =     6) (lvls, us =        1,        1,        1,        1,        1)
+[761.402s][info   ][gc,stats    ]     E: String Table Roots   =     0.00 s (a =      593 us) (n =     6) (lvls, us =      557,      557,      570,      586,      676)
+[761.402s][info   ][gc,stats    ]     E: Resolved Table Roots =     0.00 s (a =       20 us) (n =     6) (lvls, us =       14,       14,       21,       22,       24)
+[761.402s][info   ][gc,stats    ]     E: VM Weak Roots        =     0.00 s (a =        7 us) (n =     6) (lvls, us =        6,        6,        7,        7,        9)
+[761.402s][info   ][gc,stats    ]     E: Synchronizer Roots   =     0.00 s (a =        2 us) (n =     6) (lvls, us =        0,        0,        0,        1,        8)
+[761.402s][info   ][gc,stats    ]     E: Management Roots     =     0.00 s (a =        2 us) (n =     6) (lvls, us =        1,        1,        2,        2,        2)
+[761.402s][info   ][gc,stats    ]     E: System Dict Roots    =     0.00 s (a =       12 us) (n =     6) (lvls, us =        7,        7,        7,        9,       33)
+[761.402s][info   ][gc,stats    ]     E: CLDG Roots           =     0.00 s (a =      120 us) (n =     6) (lvls, us =       94,       94,      121,      127,      136)
+[761.402s][info   ][gc,stats    ]     E: JVMTI Roots          =     0.00 s (a =        1 us) (n =     6) (lvls, us =        1,        1,        1,        1,        1)
+[761.402s][info   ][gc,stats    ] Pause Final Evac (G)        =     0.01 s (a =     2108 us) (n =     6) (lvls, us =     1602,     1602,     1797,     2129,     2755)
+[761.402s][info   ][gc,stats    ] Pause Final Evac (N)        =     0.01 s (a =     1353 us) (n =     6) (lvls, us =      721,      721,      781,     1523,     2203)
+[761.402s][info   ][gc,stats    ] Concurrent Reset            =     0.04 s (a =     6626 us) (n =     6) (lvls, us =     1660,     1660,     7012,     7832,     8896)
+[761.402s][info   ][gc,stats    ] Concurrent Evacuation       =     0.93 s (a =   155668 us) (n =     6) (lvls, us =    57227,    57227,   119141,   142578,   349347)
+[761.402s][info   ][gc,stats    ] Concurrent Cleanup          =     0.00 s (a =      202 us) (n =     6) (lvls, us =      160,      160,      168,      223,      249)
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ] Under allocation pressure, concurrent cycles may cancel, and either continue cycle
+[761.402s][info   ][gc,stats    ] under stop-the-world pause or result in stop-the-world Full GC. Increase heap size,
+[761.402s][info   ][gc,stats    ] tune GC heuristics, set more aggressive pacing delay, or lower allocation rate
+[761.402s][info   ][gc,stats    ] to avoid Degenerated and Full GC cycles.
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ]     6 successful concurrent GCs
+[761.402s][info   ][gc,stats    ]       0 invoked explicitly
+[761.402s][info   ][gc,stats    ]       0 invoked implicitly
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ]     0 Degenerated GCs
+[761.402s][info   ][gc,stats    ]       0 caused by allocation failure
+[761.402s][info   ][gc,stats    ]       0 upgraded to Full GC
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ]     0 Full GCs
+[761.402s][info   ][gc,stats    ]       0 invoked explicitly
+[761.402s][info   ][gc,stats    ]       0 invoked implicitly
+[761.402s][info   ][gc,stats    ]       0 caused by allocation failure
+[761.402s][info   ][gc,stats    ]       0 upgraded from Degenerated GC
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ] 
+[761.402s][info   ][gc,stats    ]   Allocation tracing is disabled, use -XX:+ShenandoahAllocationTrace to enable.
