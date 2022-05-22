@@ -104,6 +104,8 @@
   template(JFRCheckpoint)                         \
   template(ShenandoahFullGC)                      \
   template(ShenandoahInitMark)                    \
+  template(ShenandoahHeapFlush)                   \
+  template(ShenandoahSATBFlush)                   \
   template(ShenandoahFinalMarkStartEvac)          \
   template(ShenandoahFinalEvac)                   \
   template(ShenandoahInitTraversalGC)             \

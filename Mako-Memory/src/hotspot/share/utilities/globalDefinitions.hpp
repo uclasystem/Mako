@@ -37,8 +37,8 @@
 // Modified by Haoran
 // #define BARRIERINVARIANT
 
-#define DEBUG_PRINT
-#define RELEASE_CHECK
+// #define DEBUG_PRINT
+// #define RELEASE_CHECK
 
 
 

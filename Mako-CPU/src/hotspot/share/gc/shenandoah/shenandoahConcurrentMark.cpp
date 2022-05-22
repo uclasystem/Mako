@@ -172,7 +172,7 @@ public:
       rp = NULL;
     }
 
-    _cm->concurrent_scan_code_roots(worker_id, rp);
+    // _cm->concurrent_scan_code_roots(worker_id, rp);
     _cm->mark_loop(worker_id, _terminator, rp,
                    true, // cancellable
                    ShenandoahStringDedup::is_enabled()); // perform string dedup // Haoran: dedup default false
@@ -394,14 +394,14 @@ void ShenandoahConcurrentMark::mark_from_roots() {
 
   ShenandoahGCPhase conc_mark_phase(ShenandoahPhaseTimings::conc_mark);
 
-  if (_heap->process_references()) {
-    ReferenceProcessor* rp = _heap->ref_processor();
-    rp->set_active_mt_degree(nworkers);
+  // if (_heap->process_references()) {
+  //   ReferenceProcessor* rp = _heap->ref_processor();
+  //   rp->set_active_mt_degree(nworkers);
 
-    // enable ("weak") refs discovery
-    rp->enable_discovery(true /*verify_no_refs*/);
-    rp->setup_policy(_heap->soft_ref_policy()->should_clear_all_soft_refs());
-  }
+  //   // enable ("weak") refs discovery
+  //   rp->enable_discovery(true /*verify_no_refs*/);
+  //   rp->setup_policy(_heap->soft_ref_policy()->should_clear_all_soft_refs());
+  // }
 
   shenandoah_assert_rp_isalive_not_installed();
   ShenandoahIsAliveSelector is_alive;

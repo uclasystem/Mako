@@ -369,13 +369,19 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
   heap->root_object_queue()->reset();
   heap->root_object_update_queue()->reset();
 
+  // heap->flush_heap();
   // Start initial mark under STW
   heap->vmop_entry_init_mark();
   log_debug(semeru)("CPU Server Finishes Initial Marking!");
 
-  // Modified by Haoran
-  // Continue concurrent mark
-  // heap->entry_mark();
+  // os::naked_short_sleep(999);
+  // os::naked_short_sleep(999);
+  // os::naked_short_sleep(999);
+
+  // heap->vmop_entry_heap_flush();
+  heap->flush_heap();
+  log_debug(semeru)("CPU Server Finishes Init Flush!");
+
   if (check_cancellation_or_degen(ShenandoahHeap::_degenerated_mark)) return;
 
   // os::naked_short_sleep(999);
@@ -401,12 +407,19 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
   heap->collection_set()->reset_local_pages();
 
   heap->read_data_pre_final_mark();
+  // Modified by Haoran
+  // Continue concurrent mark
+  heap->vmop_entry_satb_flush();
+  heap->entry_mark();
+
 
   // Complete marking under STW, and start evacuation
   heap->vmop_entry_final_mark();
 
   log_debug(semeru)("CPU Server Finishes Final Marking!");
   if(!heap->collection_set()->is_empty()) {
+    heap->update_root_objects();
+
     heap->write_data_after_final_mark();
     heap->entry_evac();
     log_debug(semeru)("Finish Evac Local!");

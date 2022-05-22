@@ -222,6 +222,7 @@ int ShenandoahCollectionSet::compare_by_cache(RegionCacheData a, RegionCacheData
 // Haoran: decide which regions are processed by the CPU server and which regions are processed by the memory server
 bool ShenandoahCollectionSet::select_local_process_regions() {
 
+ 
   if(_heap->gc_start_threshold > _heap->max_capacity() * (ShenandoahInitFreeThreshold - 1) / 100) {
     size_t num_regions = _heap->num_regions();
     for (size_t i = 0; i < num_regions; i++) {
@@ -231,6 +232,7 @@ bool ShenandoahCollectionSet::select_local_process_regions() {
     }
     return false;
   }
+
   return true;
 
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");

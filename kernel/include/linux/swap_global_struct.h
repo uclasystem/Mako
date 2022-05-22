@@ -174,7 +174,12 @@ extern uint64_t RMEM_SIZE_IN_PHY_SECT;			// [?] Where is it defined ?
 
 
 // Each request can have multiple bio, but each bio can only have 1  pages ??
-#define MAX_REQUEST_SGL								 32 		// number of segments, get from ibv_query_device. Use 30, or it's not safe..
+// Device dependent  
+#define MAX_REQUEST_SGL					16 		// number of segments, get from ibv_query_device. Use 30, or it's not safe..
+
+// enable scatter/gather 
+//#define ENABLE_SG
+
 //#define MAX_SEGMENT_IN_REQUEST			 32 // use the MAX_REQUEST_SGL
 //#define ONE_SIEDED_RDMA_BUF_SIZE			(u64)MAX_REQUEST_SGL * PAGE_SIZE
 

@@ -769,7 +769,8 @@ ShenandoahHeap::ShenandoahHeap(ShenandoahCollectorPolicy* policy) :
   _collection_set(NULL),
   _alive_table(NULL),
   pretouch_time(0),
-  gc_start_threshold(0)
+  gc_start_threshold(0),
+  is_doing_flush(false)
 {
   log_info(gc, init)("GC threads: " UINT32_FORMAT " parallel, " UINT32_FORMAT " concurrent", ParallelGCThreads, ConcGCThreads);
   log_info(gc, init)("Reference processing: %s", ParallelRefProcEnabled ? "parallel" : "serial");
@@ -1787,7 +1788,35 @@ void ShenandoahHeap::gc_threads_do(ThreadClosure* tcl) const {
 }
 
 void ShenandoahHeap::print_tracing_info() const {
-  return;
+  LogTarget(Info, gc, stats) lt;
+  if (lt.is_enabled()) {
+    ResourceMark rm;
+    LogStream ls(lt);
+
+    phase_timings()->print_on(&ls);
+
+    ls.cr();
+    ls.cr();
+
+    shenandoah_policy()->print_gc_stats(&ls);
+
+    ls.cr();
+    ls.cr();
+
+    if (ShenandoahPacing) {
+      pacer()->print_on(&ls);
+    }
+
+    ls.cr();
+    ls.cr();
+
+    if (ShenandoahAllocationTrace) {
+      assert(alloc_tracker() != NULL, "Must be");
+      alloc_tracker()->print_on(&ls);
+    } else {
+      ls.print_cr("  Allocation tracing is disabled, use -XX:+ShenandoahAllocationTrace to enable.");
+    }
+  }
 }
 
 void ShenandoahHeap::verify(VerifyOption vo) {
@@ -2030,6 +2059,102 @@ public:
 //   bool is_thread_safe() { return true; }
 // };
 
+void ShenandoahHeap::flush_heap() {
+  int core_id = 1;
+  cpu_set_t cpuset;
+  CPU_ZERO(&cpuset);
+  CPU_SET(core_id, &cpuset);
+
+  pid_t tid = syscall(SYS_gettid);
+  sched_setaffinity(tid, sizeof(cpu_set_t), &cpuset);
+
+  RootObjectUpdateQueue* q = root_object_update_queue();
+  for(size_t j = 0; j < ParallelGCThreads; j ++) {
+    size_t length = q->length(j);
+    for(size_t i = 0; i < length; i ++) {
+      HeapWord* p = q->retrieve_item(i, j);
+      _root_object_queue->push(oop(p));
+    }
+  }
+  rdma_write_all((char*)(SEMERU_START_ADDR+KLASS_INSTANCE_OFFSET), KLASS_INSTANCE_OFFSET_SIZE_LIMIT);
+
+
+  ShenandoahRegionIterator regions;
+  ShenandoahHeapRegion* region;
+  regions.reset();
+  region = regions.next();
+  // syscall(ENTER_EVICT, 0, NULL, 0);
+  // syscall(INIT_CHECK_STATUS, 0, NULL, 0);
+
+  while(region != NULL) {
+    // if(region->top() != region->bottom()) {
+      rdma_write(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
+    // }
+    region = regions.next();         
+  }
+  // syscall(LEAVE_EVICT, 0, NULL, 0);
+
+  log_debug(semeru,rdma)("Pre Flushed all regions to mem servers.");
+
+  rdma_write(0, (char*)(SEMERU_START_ADDR + CPU_TO_MEMORY_INIT_OFFSET), CPU_TO_MEMORY_INIT_SIZE_LIMIT);
+  rdma_write(0, (char*)(SEMERU_START_ADDR + SYNC_MEMORY_AND_CPU_OFFSET), SYNC_MEMORY_AND_CPU_SIZE_LIMIT);
+
+  rdma_write(0, (char*)_tracing_current_cycle_processing, RDMA_FLAG_PER_SIZE);
+  rdma_write(0, (char*)_root_object_queue, CROSS_REGION_REF_UPDATE_Q_SIZE_LIMIT);
+  log_debug(semeru,rdma)("rootobjqueue start_addr: 0x%lx, size: 0x%lx, root_object_queue: 0x%lx", 	(size_t)_root_object_queue, CROSS_REGION_REF_UPDATE_Q_SIZE_LIMIT, (size_t)_root_object_queue->_queue);
+  log_debug(semeru)("Root Object Queue Len: %lu", _root_object_queue->length());
+
+  
+  rdma_write(0, (char*)_cpu_server_flags, sizeof(flags_of_cpu_server_state));
+  is_doing_flush = false;
+}
+
+void ShenandoahHeap::op_heap_flush() {
+  flush_heap();
+}
+
+
+class ShenandoahDupSATBThreadsClosure : public ThreadClosure {
+private:
+  ShenandoahSATBBufferClosure* _satb_cl;
+  uintx _claim_token;
+
+public:
+  ShenandoahDupSATBThreadsClosure(ShenandoahSATBBufferClosure* satb_cl) :
+    _satb_cl(satb_cl),
+    _claim_token(Threads::thread_claim_token()) {}
+
+  void do_thread(Thread* thread) {
+    if (thread->claim_threads_do(true, _claim_token)) {
+      ShenandoahThreadLocalData::satb_mark_queue(thread).apply_closure_and_empty(_satb_cl);
+    }
+  }
+};
+
+class ShenandoahSATBFlushTask : public AbstractGangTask {
+
+public:
+  ShenandoahSATBFlushTask() :
+    AbstractGangTask("Shenandoah SATB Flush"){
+  }
+
+  void work(uint worker_id) {
+    ShenandoahHeap* heap = ShenandoahHeap::heap();
+    ShenandoahObjToScanQueue* q = heap->concurrent_mark()->get_queue(worker_id);
+    ShenandoahSATBBufferClosure cl(q);
+    ShenandoahDupSATBThreadsClosure tc(&cl);
+    Threads::threads_do(&tc);
+  }
+};
+
+void ShenandoahHeap::op_satb_flush() {
+
+  ShenandoahSATBFlushTask task;
+  workers()->run_task(&task);
+  
+}
+
+
 void ShenandoahHeap::op_init_mark() {
   int core_id = 1;
   cpu_set_t cpuset;
@@ -2066,22 +2191,28 @@ void ShenandoahHeap::op_init_mark() {
 
   // Make above changes visible to worker threads
   OrderAccess::fence();
+  
+  double final_pause_time = 0;
+  double st_time = os::elapsedTime();
 
   
   concurrent_mark()->mark_roots(ShenandoahPhaseTimings::scan_roots);
+  final_pause_time += os::elapsedTime() - st_time;
+  log_debug(semeru)("Pause Time for mark roots: %lf ms", (os::elapsedTime() - st_time) * 1000);
+  st_time = os::elapsedTime();
 
-  RootObjectUpdateQueue* q = root_object_update_queue();
-  for(size_t j = 0; j < ParallelGCThreads; j ++) {
-    size_t length = q->length(j);
-    for(size_t i = 0; i < length; i ++) {
-      HeapWord* p = q->retrieve_item(i, j);
-      _root_object_queue->push(oop(p));
-    }
-  }
+  // RootObjectUpdateQueue* q = root_object_update_queue();
+  // for(size_t j = 0; j < ParallelGCThreads; j ++) {
+  //   size_t length = q->length(j);
+  //   for(size_t i = 0; i < length; i ++) {
+  //     HeapWord* p = q->retrieve_item(i, j);
+  //     _root_object_queue->push(oop(p));
+  //   }
+  // }
 
-  flush_cache_all();
+  // flush_cache_all();
 
-  rdma_write_all((char*)(SEMERU_START_ADDR+KLASS_INSTANCE_OFFSET), KLASS_INSTANCE_OFFSET_SIZE_LIMIT);
+  // rdma_write_all((char*)(SEMERU_START_ADDR+KLASS_INSTANCE_OFFSET), KLASS_INSTANCE_OFFSET_SIZE_LIMIT);
 
   // Modified by Haoran 
   ShenandoahRegionIterator regions;
@@ -2091,28 +2222,28 @@ void ShenandoahHeap::op_init_mark() {
 
   regions.reset();
   region = regions.next();
-  syscall(ENTER_EVICT, 0, NULL, 0);
-  syscall(INIT_CHECK_STATUS, 0, NULL, 0);
-  // TODO: make this parallel
-  while(region != NULL) {
-    // Modified by Haoran New
-    // TODO: optimization
-    if(region->top() != region->bottom()) {
-      rdma_write(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-      // rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-      // syscall(CHECK_STATUS, 0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-      // log_debug(semeru,rdma)("flushed region [0x%lx], start: 0x%lx, size: 0x%lx, top: 0x%lx", region->region_number(), (size_t)region->bottom(), ShenandoahHeapRegion::region_size_bytes(), (size_t)region->top());
+  // syscall(ENTER_EVICT, 0, NULL, 0);
+  // syscall(INIT_CHECK_STATUS, 0, NULL, 0);
+  // // TODO: make this parallel
+  // while(region != NULL) {
+  //   // Modified by Haoran New
+  //   // TODO: optimization
+  //   if(region->top() != region->bottom()) {
+  //     rdma_write(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
+  //     // rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
+  //     // syscall(CHECK_STATUS, 0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
+  //     // log_debug(semeru,rdma)("flushed region [0x%lx], start: 0x%lx, size: 0x%lx, top: 0x%lx", region->region_number(), (size_t)region->bottom(), ShenandoahHeapRegion::region_size_bytes(), (size_t)region->top());
     
-    }
+  //   }
     
-    region = regions.next();
-    // rdma_write(0, (char*)region->cpu_to_mem_at_init(), sizeof(ShenandoahCPUToMemoryAtInit));
-    // region->sync_between_mem_and_cpu()->_top = region->top();
-    // rdma_write(0, (char*)region->sync_between_mem_and_cpu(), sizeof(ShenandoahSyncBetweenMemoryAndCPU));
-    // region = regions.next();               
-  }
-  syscall(LEAVE_EVICT, 0, NULL, 0);
-  log_debug(semeru,rdma)("Flushed regions structures to mem servers.");
+  //   region = regions.next();
+  //   // rdma_write(0, (char*)region->cpu_to_mem_at_init(), sizeof(ShenandoahCPUToMemoryAtInit));
+  //   // region->sync_between_mem_and_cpu()->_top = region->top();
+  //   // rdma_write(0, (char*)region->sync_between_mem_and_cpu(), sizeof(ShenandoahSyncBetweenMemoryAndCPU));
+  //   // region = regions.next();               
+  // }
+  // syscall(LEAVE_EVICT, 0, NULL, 0);
+  // log_debug(semeru,rdma)("Flushed regions structures to mem servers.");
 
 
   regions.reset();
@@ -2123,15 +2254,15 @@ void ShenandoahHeap::op_init_mark() {
     // rdma_write(0, (char*)region->sync_between_mem_and_cpu(), sizeof(ShenandoahSyncBetweenMemoryAndCPU));
     region = regions.next();               
   }
-  rdma_write(0, (char*)(SEMERU_START_ADDR + CPU_TO_MEMORY_INIT_OFFSET), CPU_TO_MEMORY_INIT_SIZE_LIMIT);
-  rdma_write(0, (char*)(SEMERU_START_ADDR + SYNC_MEMORY_AND_CPU_OFFSET), SYNC_MEMORY_AND_CPU_SIZE_LIMIT);
+  // rdma_write(0, (char*)(SEMERU_START_ADDR + CPU_TO_MEMORY_INIT_OFFSET), CPU_TO_MEMORY_INIT_SIZE_LIMIT);
+  // rdma_write(0, (char*)(SEMERU_START_ADDR + SYNC_MEMORY_AND_CPU_OFFSET), SYNC_MEMORY_AND_CPU_SIZE_LIMIT);
 
 
   _tracing_current_cycle_processing->set_byte_flag(true);
-  rdma_write(0, (char*)_tracing_current_cycle_processing, RDMA_FLAG_PER_SIZE);
-  rdma_write(0, (char*)_root_object_queue, CROSS_REGION_REF_UPDATE_Q_SIZE_LIMIT);
-  log_debug(semeru,rdma)("rootobjqueue start_addr: 0x%lx, size: 0x%lx, root_object_queue: 0x%lx", 	(size_t)_root_object_queue, CROSS_REGION_REF_UPDATE_Q_SIZE_LIMIT, (size_t)_root_object_queue->_queue);
-  log_debug(semeru)("Root Object Queue Len: %lu", _root_object_queue->length());
+  // rdma_write(0, (char*)_tracing_current_cycle_processing, RDMA_FLAG_PER_SIZE);
+  // rdma_write(0, (char*)_root_object_queue, CROSS_REGION_REF_UPDATE_Q_SIZE_LIMIT);
+  // log_debug(semeru,rdma)("rootobjqueue start_addr: 0x%lx, size: 0x%lx, root_object_queue: 0x%lx", 	(size_t)_root_object_queue, CROSS_REGION_REF_UPDATE_Q_SIZE_LIMIT, (size_t)_root_object_queue->_queue);
+  // log_debug(semeru)("Root Object Queue Len: %lu", _root_object_queue->length());
 
   _cpu_server_flags->_should_start_tracing = true;
   log_debug(semeru,rdma)("cpu server flags _should_start_tracing %d", _cpu_server_flags->_should_start_tracing);
@@ -2142,11 +2273,11 @@ void ShenandoahHeap::op_init_mark() {
   _cpu_server_flags->_evacuation_all_finished = false;
 
   // Haoran: TODO: ensure all data has been written
-  os::naked_short_sleep(100);
+  // os::naked_short_sleep(100);
   // os::sleep(Thread::current(), 100, false);
 
   // rdma_signal_flag(0, (char*)_cpu_server_flags, sizeof(flags_of_cpu_server_state));
-  rdma_write(0, (char*)_cpu_server_flags, sizeof(flags_of_cpu_server_state));
+  // rdma_write(0, (char*)_cpu_server_flags, sizeof(flags_of_cpu_server_state));
 
   
   log_debug(semeru,rdma)("cpu server flags start_addr: 0x%lx, size: 0x%lx", (size_t)_cpu_server_flags, (size_t)sizeof(flags_of_cpu_server_state) );
@@ -2170,6 +2301,19 @@ void ShenandoahHeap::op_init_mark() {
   // log_debug(semeru)("Memory Server Finishes Marking!");
 
   // stop_concurrent_marking();
+
+  is_doing_flush = true;
+
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread *t = jtiwh.next(); ) {
+    SATBMarkQueue* q = &(ShenandoahThreadLocalData::satb_mark_queue(t));
+    if(q->index() != 0) {
+      q->set_index(0);
+      if(q->_buf != NULL) {
+        memset(q->_buf, 0, q->capacity_in_bytes());
+      }
+    }
+    
+  }
 
 }
 
@@ -2440,6 +2584,8 @@ private:
 };
 
 void ShenandoahHeap::op_final_mark() {
+  double final_pause_time = 0;
+  double st_time = os::elapsedTime();
   // int core_id = 1;
   // cpu_set_t cpuset;
   // CPU_ZERO(&cpuset);
@@ -2460,6 +2606,10 @@ void ShenandoahHeap::op_final_mark() {
     ShenandoahHeapRegion* region;
 
     // clear buffers that has been processed
+    
+    final_pause_time += os::elapsedTime() - st_time;
+    log_debug(semeru)("Pause Time for clear trace buffer: %lf ms", (os::elapsedTime() - st_time) * 1000);
+    st_time = os::elapsedTime();
 
     log_debug(semeru,rdma)("after clear traced buffer");
     
@@ -2468,6 +2618,10 @@ void ShenandoahHeap::op_final_mark() {
     stop_concurrent_marking();
     ShenandoahSemeruCalcOffsetTask task(this);
     workers()->run_task(&task);
+
+    final_pause_time += os::elapsedTime() - st_time;
+    log_debug(semeru)("Pause Time for finish marking: %lf ms", (os::elapsedTime() - st_time) * 1000);
+    st_time = os::elapsedTime();
 
     if (has_forwarded_objects()) {
       ShouldNotReachHere();
@@ -2493,11 +2647,17 @@ void ShenandoahHeap::op_final_mark() {
       ShenandoahCompleteLivenessClosure cl;
       parallel_heap_region_iterate(&cl);
     }
+    final_pause_time += os::elapsedTime() - st_time;
+    log_debug(semeru)("Pause Time for complete liveness: %lf ms", (os::elapsedTime() - st_time) * 1000);
+    st_time = os::elapsedTime();
 
     {
       ShenandoahGCPhase prepare_evac(ShenandoahPhaseTimings::prepare_evac);
 
       make_parsable(true);
+      final_pause_time += os::elapsedTime() - st_time;
+      log_debug(semeru)("Pause Time for retire labs: %lf ms", (os::elapsedTime() - st_time) * 1000);
+      st_time = os::elapsedTime();
 
       // Modified by Haoran
       assert(collection_set()->is_empty(), "Invariant here, cset should be set to empty at final update refs");
@@ -2508,9 +2668,15 @@ void ShenandoahHeap::op_final_mark() {
         _collection_set->clear();
         _free_set->clear();
         _free_set->rebuild();
+        final_pause_time += os::elapsedTime() - st_time;
+        log_debug(semeru)("Pause Time for rebuild free set: %lf ms", (os::elapsedTime() - st_time) * 1000);
+        st_time = os::elapsedTime();
 
         // Haoran: for region with no live objects, will make them trash in this function.
         heuristics()->choose_collection_set(_collection_set);
+        final_pause_time += os::elapsedTime() - st_time;
+        log_debug(semeru)("Pause Time for choose cset: %lf ms", (os::elapsedTime() - st_time) * 1000);
+        st_time = os::elapsedTime();
 
 
         regions.reset();
@@ -2526,6 +2692,9 @@ void ShenandoahHeap::op_final_mark() {
           }
           region = regions.next();               
         }
+        final_pause_time += os::elapsedTime() - st_time;
+        log_debug(semeru)("Pause Time for add collectionset: %lf ms", (os::elapsedTime() - st_time) * 1000);
+        st_time = os::elapsedTime();
       }
     }
 
@@ -2541,7 +2710,13 @@ void ShenandoahHeap::op_final_mark() {
       set_evacuation_in_progress(true);
       // From here on, we need to update references.
       set_has_forwarded_objects(true);
+      final_pause_time += os::elapsedTime() - st_time;
+      log_debug(semeru)("Pause Time before evacuate roots: %lf ms", (os::elapsedTime() - st_time) * 1000);
+      st_time = os::elapsedTime();
       evacuate_and_update_roots();
+      final_pause_time += os::elapsedTime() - st_time;
+      log_debug(semeru)("Pause Time during evacuate roots: %lf ms", (os::elapsedTime() - st_time) * 1000);
+      st_time = os::elapsedTime();
 
       
 
@@ -2580,8 +2755,13 @@ void ShenandoahHeap::op_final_mark() {
       _cpu_server_flags->_tracing_all_finished = true;
       _cpu_server_flags->_should_start_evacuation = true;
       _cpu_server_flags->_evacuation_all_finished = false;
+      final_pause_time += os::elapsedTime() - st_time;
+      log_debug(semeru)("Pause Time after evacuate roots: %lf ms", (os::elapsedTime() - st_time) * 1000);
+      st_time = os::elapsedTime();
+      log_debug(semeru)("Total Pause Time: %lf ms", final_pause_time * 1000);
 
-      update_root_objects();
+      // update_root_objects();
+      log_debug(semeru)("Pause Time for update roots: %lf ms", (os::elapsedTime() - st_time) * 1000);
 
 
       // ShenandoahEvacuationTask task(this, _collection_set, false);
@@ -3508,6 +3688,24 @@ void ShenandoahHeap::vmop_entry_init_mark() {
   VMThread::execute(&op); // jump to entry_init_mark() under safepoint
 }
 
+void ShenandoahHeap::vmop_entry_heap_flush() {
+  // TraceCollectorStats tcs(monitoring_support()->stw_collection_counters());
+  // ShenandoahGCPhase total(ShenandoahPhaseTimings::total_pause_gross);
+  // ShenandoahGCPhase phase(ShenandoahPhaseTimings::init_mark_gross);
+
+  VM_ShenandoahHeapFlush op;
+  VMThread::execute(&op); // jump to entry_init_mark() under safepoint
+}
+
+void ShenandoahHeap::vmop_entry_satb_flush() {
+  // TraceCollectorStats tcs(monitoring_support()->stw_collection_counters());
+  // ShenandoahGCPhase total(ShenandoahPhaseTimings::total_pause_gross);
+  // ShenandoahGCPhase phase(ShenandoahPhaseTimings::init_mark_gross);
+
+  VM_ShenandoahSATBFlush op;
+  VMThread::execute(&op); // jump to entry_init_mark() under safepoint
+}
+
 void ShenandoahHeap::vmop_entry_final_mark() {
   TraceCollectorStats tcs(monitoring_support()->stw_collection_counters());
   ShenandoahGCPhase total(ShenandoahPhaseTimings::total_pause_gross);
@@ -3587,6 +3785,11 @@ void ShenandoahHeap::vmop_degenerated(ShenandoahDegenPoint point) {
 }
 
 void ShenandoahHeap::entry_init_mark() {
+  ShenandoahGCPhase total_phase(ShenandoahPhaseTimings::total_pause);
+  ShenandoahGCPhase phase(ShenandoahPhaseTimings::init_mark);
+  const char* msg = init_mark_event_message();
+  GCTraceTime(Info, gc) time(msg, gc_timer());
+  EventMark em("%s", msg);
 
   ShenandoahWorkerScope scope(workers(),
                               ShenandoahWorkerPolicy::calc_workers_for_init_marking(),
@@ -3595,7 +3798,40 @@ void ShenandoahHeap::entry_init_mark() {
   op_init_mark();
 }
 
+void ShenandoahHeap::entry_heap_flush() {
+  // ShenandoahGCPhase total_phase(ShenandoahPhaseTimings::total_pause);
+  // ShenandoahGCPhase phase(ShenandoahPhaseTimings::init_mark);
+  // const char* msg = init_mark_event_message();
+  // GCTraceTime(Info, gc) time(msg, gc_timer());
+  // EventMark em("%s", msg);
+
+  ShenandoahWorkerScope scope(workers(),
+                              ShenandoahWorkerPolicy::calc_workers_for_init_marking(),
+                              "init marking");
+
+  op_heap_flush();
+}
+
+void ShenandoahHeap::entry_satb_flush() {
+  // ShenandoahGCPhase total_phase(ShenandoahPhaseTimings::total_pause);
+  // ShenandoahGCPhase phase(ShenandoahPhaseTimings::init_mark);
+  // const char* msg = init_mark_event_message();
+  // GCTraceTime(Info, gc) time(msg, gc_timer());
+  // EventMark em("%s", msg);
+
+  ShenandoahWorkerScope scope(workers(),
+                              ShenandoahWorkerPolicy::calc_workers_for_init_marking(),
+                              "init marking");
+
+  op_satb_flush();
+}
+
 void ShenandoahHeap::entry_final_mark() {
+  ShenandoahGCPhase total_phase(ShenandoahPhaseTimings::total_pause);
+  ShenandoahGCPhase phase(ShenandoahPhaseTimings::final_mark);
+  const char* msg = final_mark_event_message();
+  GCTraceTime(Info, gc) time(msg, gc_timer());
+  EventMark em("%s", msg);
 
   ShenandoahWorkerScope scope(workers(),
                               ShenandoahWorkerPolicy::calc_workers_for_final_marking(),
@@ -3605,6 +3841,11 @@ void ShenandoahHeap::entry_final_mark() {
 }
 
 void ShenandoahHeap::entry_final_evac() {
+  ShenandoahGCPhase total_phase(ShenandoahPhaseTimings::total_pause);
+  ShenandoahGCPhase phase(ShenandoahPhaseTimings::final_evac);
+  static const char* msg = "Pause Final Evac";
+  GCTraceTime(Info, gc) time(msg, gc_timer());
+  EventMark em("%s", msg);
 
   op_final_evac();
 }
@@ -3746,6 +3987,11 @@ void ShenandoahHeap::entry_updaterefs() {
   op_updaterefs();
 }
 void ShenandoahHeap::entry_cleanup() {
+  ShenandoahGCPhase phase(ShenandoahPhaseTimings::conc_cleanup);
+
+  static const char* msg = "Concurrent cleanup";
+  GCTraceTime(Info, gc) time(msg, NULL, GCCause::_no_gc, true);
+  EventMark em("%s", msg);
 
   // This phase does not use workers, no need for setup
 

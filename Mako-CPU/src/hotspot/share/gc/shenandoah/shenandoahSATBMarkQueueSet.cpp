@@ -59,6 +59,9 @@ public:
   bool operator()(const void* entry) const {
     // Modified by Haoran
     // return false;
+    if(entry == NULL) {
+      return true;
+    }
     return !_heap->requires_marking<RESOLVE>(entry);
   }
 };

@@ -68,6 +68,9 @@ void PtrQueue::flush_impl() {
 }
 
 void PtrQueue::enqueue_known_active(void* ptr) {
+  while(ShenandoahHeap::heap()->is_doing_flush) {
+    os::naked_short_sleep(50);
+  }
   while (_index == 0) {
     handle_zero_index();
   }

@@ -559,15 +559,15 @@ int semeru_frontswap_load(unsigned type, pgoff_t swap_entry_offset, struct page 
 		goto out;
 	}
 
-// #ifdef DEBUG_MODE_DETAIL
-	//pr_info("%s, rdma_queue[%d]  load page 0x%lx, virt addr 0x%lx, swp_offset 0x%lx  >>>>> \n",
-	//                  __func__, rdma_queue->q_index, (size_t)page, (size_t)(RDMA_DATA_SPACE_START_ADDR + start_addr), (size_t)swap_entry_offset);
+ #ifdef DEBUG_MODE_DETAIL
+	pr_info("%s, rdma_queue[%d]  load page 0x%lx, virt addr 0x%lx, swp_offset 0x%lx  >>>>> \n",
+	                 __func__, rdma_queue->q_index, (size_t)page, (size_t)(RDMA_DATA_SPACE_START_ADDR + start_addr), (size_t)swap_entry_offset);
 
-	// enable swap out of Meta Region
+	// //enable swap out of Meta Region
 	// if((size_t)(RDMA_DATA_SPACE_START_ADDR + start_addr)>=0x400100000000ULL && (size_t)(RDMA_DATA_SPACE_START_ADDR + start_addr) <= 0x400108000000)
-	// pr_info("%s, rdma_queue[%d]  load page 0x%lx, virt addr 0x%lx, swp_offset 0x%lx  >>>>> \n", __func__,
-	// 	rdma_queue->q_index, (size_t)page, (size_t)(RDMA_DATA_SPACE_START_ADDR + start_addr), (size_t)swap_entry_offset);
-// #endif
+	// 	pr_info("%s, rdma_queue[%d]  load page 0x%lx, virt addr 0x%lx, swp_offset 0x%lx  >>>>> \n", __func__,
+	// 		rdma_queue->q_index, (size_t)page, (size_t)(RDMA_DATA_SPACE_START_ADDR + start_addr), (size_t)swap_entry_offset);
+ #endif
 
 	
 

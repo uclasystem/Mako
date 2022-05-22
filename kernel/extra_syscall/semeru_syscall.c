@@ -121,10 +121,10 @@ asmlinkage int sys_do_semeru_rdma_ops(int type, int target_server, char __user *
 
 	} else if (type == 4) {
 		// force swap out and unmap a range of user virtual address
-//#if defined(DEBUG_MODE_BRIEF) || defined(DEBUG_MODE_DETAIL)
+#if defined(DEBUG_MODE_BRIEF) || defined(DEBUG_MODE_DETAIL)
 		pr_warn("%s, write type %d, forcing swap out data in [0x%lx, 0x%lx) to memory server[%d]\n",
 			__func__, type, (size_t)start_addr, (size_t)(start_addr + size) ,target_server);
-//#endif
+#endif
 		semeru_force_swapout((size_t)start_addr, (size_t)(start_addr + size));
 
 

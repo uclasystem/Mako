@@ -37,6 +37,9 @@ ShenandoahWorkerScope::ShenandoahWorkerScope(WorkGang* workers, uint nworkers, c
   _n_workers = _workers->update_active_workers(nworkers);
   assert(_n_workers <= nworkers, "Must be");
 
+  log_info(gc, task)("Using %u of %u workers for %s",
+    _n_workers, ShenandoahHeap::heap()->max_workers(), msg);
+
   if (check) {
     ShenandoahHeap::heap()->assert_gc_workers(_n_workers);
   }

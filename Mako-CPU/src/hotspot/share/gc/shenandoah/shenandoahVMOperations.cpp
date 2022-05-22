@@ -45,6 +45,16 @@ void VM_ShenandoahInitMark::doit() {
   ShenandoahHeap::heap()->entry_init_mark();
 }
 
+void VM_ShenandoahHeapFlush::doit() {
+  ShenandoahGCPauseMark mark(_gc_id, SvcGCMarker::CONCURRENT);
+  ShenandoahHeap::heap()->entry_heap_flush();
+}
+
+void VM_ShenandoahSATBFlush::doit() {
+  ShenandoahGCPauseMark mark(_gc_id, SvcGCMarker::CONCURRENT);
+  ShenandoahHeap::heap()->entry_satb_flush();
+}
+
 void VM_ShenandoahFinalMarkStartEvac::doit() {
   ShenandoahGCPauseMark mark(_gc_id, SvcGCMarker::CONCURRENT);
   ShenandoahHeap::heap()->entry_final_mark();

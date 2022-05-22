@@ -61,6 +61,22 @@ public:
   virtual void doit();
 };
 
+class VM_ShenandoahHeapFlush: public VM_ShenandoahOperation {
+public:
+  VM_ShenandoahHeapFlush() : VM_ShenandoahOperation() {};
+  VM_Operation::VMOp_Type type() const { return VMOp_ShenandoahHeapFlush; }
+  const char* name()             const { return "Shenandoah Flushing Heap"; }
+  virtual void doit();
+};
+
+class VM_ShenandoahSATBFlush: public VM_ShenandoahOperation {
+public:
+  VM_ShenandoahSATBFlush() : VM_ShenandoahOperation() {};
+  VM_Operation::VMOp_Type type() const { return VMOp_ShenandoahSATBFlush; }
+  const char* name()             const { return "Shenandoah Flushing SATB"; }
+  virtual void doit();
+};
+
 class VM_ShenandoahFinalMarkStartEvac: public VM_ShenandoahReferenceOperation {
 public:
   VM_ShenandoahFinalMarkStartEvac() : VM_ShenandoahReferenceOperation() {};

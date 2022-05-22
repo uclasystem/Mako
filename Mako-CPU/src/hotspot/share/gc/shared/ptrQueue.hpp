@@ -64,13 +64,13 @@ class PtrQueue {
   size_t _capacity_in_bytes;
 
   static const size_t _element_size = sizeof(void*);
-
+public:
   // Get the capacity, in bytes.  The capacity must have been set.
   size_t capacity_in_bytes() const {
     assert(_capacity_in_bytes > 0, "capacity not set");
     return _capacity_in_bytes;
   }
-
+private:
   static size_t byte_index_to_index(size_t ind) {
     assert(is_aligned(ind, _element_size), "precondition");
     return ind / _element_size;
@@ -80,7 +80,7 @@ class PtrQueue {
     return ind * _element_size;
   }
 
-protected:
+public:
   // The buffer.
   void** _buf;
 
@@ -97,7 +97,7 @@ protected:
   size_t capacity() const {
     return byte_index_to_index(capacity_in_bytes());
   }
-
+protected:
   PtrQueueSet* qset() const { return _qset; }
 
   // Process queue entries and release resources.

@@ -412,6 +412,8 @@ public:
   // Entry points to STW GC operations, these cause a related safepoint, that then
   // call the entry method below
   void vmop_entry_init_mark();
+  void vmop_entry_heap_flush();
+  void vmop_entry_satb_flush();
   void vmop_entry_final_mark();
   void vmop_entry_final_evac();
   void vmop_entry_init_updaterefs();
@@ -424,6 +426,8 @@ public:
   // Entry methods to normally STW GC operations. These set up logging, monitoring
   // and workers for net VM operation
   void entry_init_mark();
+  void entry_heap_flush();
+  void entry_satb_flush();
   void entry_final_mark();
   void entry_final_evac();
   void entry_init_updaterefs();
@@ -446,9 +450,12 @@ public:
   void read_data_pre_final_mark();
   void write_data_after_final_mark();
 
+  void flush_heap();
 private:
   // Actual work for the phases
   void op_init_mark();
+  void op_heap_flush();
+  void op_satb_flush();
   void op_final_mark();
   void op_final_evac();
   void op_init_updaterefs();
@@ -859,6 +866,7 @@ private:
   bool should_inject_alloc_failure();
 public:
   size_t gc_start_threshold;
+  bool is_doing_flush;
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_HPP

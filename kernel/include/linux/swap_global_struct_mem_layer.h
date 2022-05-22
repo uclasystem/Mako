@@ -13,6 +13,7 @@
 #ifndef __LINUX_SWAP_SWAP_GLOBAL_STRUCT_MEM_LAYER_H
 #define __LINUX_SWAP_SWAP_GLOBAL_STRUCT_MEM_LAYER_H
 
+#include "linux/printk.h"
 #include <linux/swap_global_struct.h>
 
 //
@@ -71,7 +72,7 @@ static inline void leave_swap_zone_with_debug_info(size_t addr, const char* mess
 	int ret = atomic_dec_return(&enter_swap_zone_counter);
 
 	if(ret < 0) {
-		pr_warn("%s, fault on 0x%lx, decreased enter_swap_zone_counter to %d <=== \n",
+		pr_err("%s, fault on 0x%lx, decreased enter_swap_zone_counter to %d <=== \n",
 				message, addr, ret);
 	}
 
@@ -89,7 +90,7 @@ static inline void prepare_control_path_flush(void){
 
 	// enter flush zone,
 	// 1) prevent new swap-out jumping in
-	// 2) wait the exits of all the entered swap-outs
+	// 2) wait the exit of all the entered swap-outs
 	atomic_set(&cp_path_prepare_to_flush, 1);
 	atomic_set(&debug_counter, 0);
 
@@ -110,7 +111,9 @@ static inline void prepare_control_path_flush(void){
 				break;
 			}
 
+			pr_warn("%s, sleep ==>\n",__func__);
 			cond_resched();
+			pr_warn("%s, wake up <===\n",__func__);
 		}else{
 
 			pr_warn("%s, All threads exited swap zone.\n", 
@@ -153,7 +156,9 @@ static inline void test_and_enter_swap_zone(void){
 		if(unlikely(atomic_read(&cp_path_prepare_to_flush))){
 			// control path is preparing to flush the on-the-fly data
 			// reshedule and try again
+			pr_warn("%s, sleep ==>\n",__func__);
 			cond_resched();
+			pr_warn("%s, wake up <===\n",__func__);
 		}else{
 			// safe to enter the swap zone
 			enter_swap_zone();
@@ -165,11 +170,20 @@ static inline void test_and_enter_swap_zone(void){
 
 
 static inline void test_and_enter_swap_zone_with_debug_info(size_t addr, const char* message){
+
+#if defined(DEBUG_MODE_DETAIL)
+	pr_warn("%s : %s, addr : 0x%lx , trying to enter swap zone.\n", __func__, message, addr);
+#endif
+
 	do{
 		if(unlikely(atomic_read(&cp_path_prepare_to_flush))){
 			// control path is preparing to flush the on-the-fly data
 			// reshedule and try again
+			pr_warn("%s, cp_path_prepare_to_flush is enabled : %d, wait & reschedule.\n",
+				__func__,  atomic_read(&cp_path_prepare_to_flush));
+			pr_warn("%s, sleep ==>\n",__func__);
 			cond_resched();
+			pr_warn("%s, wake up <===\n",__func__);
 		}else{
 			// safe to enter the swap zone
 			enter_swap_zone_with_debug_info(addr, message);
@@ -177,6 +191,11 @@ static inline void test_and_enter_swap_zone_with_debug_info(size_t addr, const c
 		}
 
 	}while(1);
+
+#if defined(DEBUG_MODE_DETAIL)	
+	pr_warn("%s : %s, addr : 0x%lx , entered swap zone.\n", __func__, message, addr);
+#endif
+
 }
 
 

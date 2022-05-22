@@ -56,11 +56,11 @@ delete_old_kernel_contents () {
 install_new_kernel_contents () {
 	echo "install kernel modules"
 	sleep 1
-	sudo make modules_install
+	sudo make -j${num_cores} INSTALL_MOD_STRIP=1  modules_install
 
 	echo "install kernel image"
 	sleep 1
-	sudo make install
+	sudo make -j${num_cores}  install
 
 }
 
@@ -150,7 +150,7 @@ then
 	sleep 1
 
 	echo "Install kernel image only"
-	sudo make install
+	sudo make -j${num_cores}  install
 	sleep 1
 
 	update_grub_entries

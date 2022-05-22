@@ -2710,7 +2710,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 	LIST_HEAD(clean_pages);
 
 	// yifan added
-	test_and_enter_swap_zone_with_debug_info(0, "enter shrink_page_list");
+	test_and_enter_swap_zone_with_debug_info(0, "enter reclaim_clean_pages_from_list");
 
 	list_for_each_entry_safe(page, next, page_list, lru) {
 		if (page_is_file_cache(page) && !PageDirty(page) &&
@@ -2726,7 +2726,7 @@ unsigned long reclaim_clean_pages_from_list(struct zone *zone,
 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE, -ret);
 
 	// yifan added
-	leave_swap_zone_with_debug_info(0, "shrink-page-list-done");
+	leave_swap_zone_with_debug_info(0, "reclaim_clean_pages_from_list done");
 
 	return ret;
 }
@@ -3314,7 +3314,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 	}
 
 	// yifan added
-	test_and_enter_swap_zone_with_debug_info(0, "enter shrink_page_list");
+	test_and_enter_swap_zone_with_debug_info(0, "enter shrink_inactive_list");
 
 	lru_add_drain(); // [x] Flush the per-cpu local pagevecs to global LRU list.
 
@@ -3340,7 +3340,7 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 
 	if (nr_taken == 0) {
 		// yifan added
-		leave_swap_zone_with_debug_info(0, "shrink-page-list-done");
+		leave_swap_zone_with_debug_info(0, "shrink_inactive_list done");
 		return 0;
 	}
 
@@ -3869,7 +3869,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
 		isolate_mode |= ISOLATE_UNMAPPED;
 
 	// yifan added
-	test_and_enter_swap_zone_with_debug_info(0, "enter shrink_page_list");
+	test_and_enter_swap_zone_with_debug_info(0, "enter shrink_active_list");
 
 	spin_lock_irq(&pgdat->lru_lock);
 
@@ -3943,7 +3943,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	spin_unlock_irq(&pgdat->lru_lock);
 
 	// yifan added
-	leave_swap_zone_with_debug_info(0, "shrink-page-list-done");
+	leave_swap_zone_with_debug_info(0, "shrink_active_list done");
 
 	mem_cgroup_uncharge_list(&l_hold);
 	free_hot_cold_page_list(&l_hold, true);

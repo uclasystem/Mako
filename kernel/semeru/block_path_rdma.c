@@ -2054,10 +2054,10 @@ int dp_build_rdma_wr(struct rmem_rdma_command *rdma_cmd_ptr, struct request * io
 
 	// 3) fill the wr
 	// Re write some field of the ib_rdma_wr
-	rdma_cmd_ptr->io_rq										= io_rq;						// Reserve this i/o request as responds request. 
-	rdma_cmd_ptr->rdma_sq_wr.rkey					= remote_chunk_ptr->remote_rkey;  // [?] when to use the remote key ?
+	rdma_cmd_ptr->io_rq					= io_rq;	// Reserve this i/o request as responds request. 
+	rdma_cmd_ptr->rdma_sq_wr.rkey		= remote_chunk_ptr->remote_rkey;  // [?] when to use the remote key ?
 	rdma_cmd_ptr->rdma_sq_wr.remote_addr	= remote_chunk_ptr->remote_addr + offse_within_chunk; // only read a page
-	rdma_cmd_ptr->rdma_sq_wr.wr.opcode		= (rq_data_dir(io_rq) == WRITE ? IB_WR_RDMA_WRITE : IB_WR_RDMA_READ);
+	rdma_cmd_ptr->rdma_sq_wr.wr.opcode	= (rq_data_dir(io_rq) == WRITE ? IB_WR_RDMA_WRITE : IB_WR_RDMA_READ);
 	rdma_cmd_ptr->rdma_sq_wr.wr.send_flags = IB_SEND_SIGNALED; // 1-sided RDMA message ? both read /write
 	rdma_cmd_ptr->rdma_sq_wr.wr.wr_id	= (u64)rdma_cmd_ptr;
 
@@ -2246,8 +2246,14 @@ uint64_t meta_data_map_sg(struct rdma_session_context * rdma_session,  struct sc
 													char ** addr_scan_ptr, char * end_addr){
 
 	uint64_t entries = 0; // mapped pages
-	size_t	package_page_num_limit = (MAX_REQUEST_SGL -2);  // InfiniBand hardware S/G limits, bytes
 	
+#ifdef ENABLE_SG	
+	size_t	package_page_num_limit = (MAX_REQUEST_SGL -2);  // InfiniBand hardware S/G limits, bytes
+#else
+	// Debug: disable scatter/gather
+	size_t package_page_num_limit = 1;
+#endif
+
 	pte_t* 	pte_ptr;
 	struct page *buf_page;
 
