@@ -1,5 +1,10 @@
 # Mako README
 
+*Mako* is a low-pause, high-throughput garbage collector designed for memory-disaggregated datacenters. Key to Mako’s success is its ability to offload both tracing and evacuation onto memory servers and run these tasks concurrently when the CPU server executes mutator threads.  Mako achieves *~12ms* at the
+90th-percentile pause time and outperforms Shenandoah by an average of 3 times in throughput. 
+
+Please read [our PLDI'22 paper](http://web.cs.ucla.edu/~harryxu/papers/mako-pldi22.pdf) for the design details. 
+
 ## Setup Environments
 
 - **Hardware: Intel servers with InfiniBand**
