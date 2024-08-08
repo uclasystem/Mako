@@ -1,3 +1,7 @@
 Mako-CPU/build
 Mako-Memory/build
 Mako-Memory/Case1.class
+Mako-CPU/dacapo-9.12-MR1-bach.jar
+kernel/.tmp_kallsyms*.S
+.vscode
+scratch/
