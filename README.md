@@ -112,7 +112,7 @@ The next step is to install the JVM on each server.
     make CONF=linux-x86_64-server-release
     
     cd Mako/Mako-Memory
-    bash ./configure --with-debug-level=release --with-target-bits=64 --disable-dtrace --with-boot-jdk=${HOME}/jdk-12 --with-extra-cxxflags="-lrdmacm -libverbs" --with-extra-ldflags="-lrdmacm -libverbs" 
+    bash ./configure --with-debug-level=release --with-target-bits=64 --with-boot-jdk=${HOME}/jdk-12.0.2 --with-extra-cxxflags="-lrdmacm -libverbs" --with-extra-ldflags="-lrdmacm -libverbs" 
     make CONF=linux-x86_64-server-release
     ```
     
