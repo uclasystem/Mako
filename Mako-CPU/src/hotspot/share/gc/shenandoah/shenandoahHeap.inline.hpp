@@ -157,6 +157,7 @@ inline void ShenandoahHeap::semeru_maybe_update_with_forwarded(T* p) {
       // oop new_obj = oop(heap_region_containing(obj)->offset_table()->get((HeapWord*)obj));
       oop new_obj = ShenandoahForwarding::get_forwardee(obj);
       if(new_obj == obj) {
+        ShouldNotReachHere();
         new_obj = _alive_table->get_target_address(obj);
       }
       // assert(ShenandoahForwarding::is_forwarded(obj), "Invariant!");
@@ -351,7 +352,7 @@ inline HeapWord* ShenandoahHeap::allocate_from_gclab(Thread* thread, size_t size
 
 // Haoran: p here is real ref
 // return real ref
-inline oop ShenandoahHeap::evacuate_root(oop p, Thread* thread, size_t worker_id) {
+inline oop ShenandoahHeap::evac_root(oop p, Thread* thread, size_t worker_id) {
   
   shenandoah_assert_in_heap(NULL, p);
 
@@ -402,7 +403,137 @@ inline oop ShenandoahHeap::evacuate_root(oop p, Thread* thread, size_t worker_id
   
   if (oopDesc::equals_raw(result, copy_val)) {
     shenandoah_assert_correct(NULL, copy_val);
-    
+    collection_set()->add_region_to_update(heap_region_containing(copy));
+    return copy_val;
+  }  else {
+    if (alloc_from_gclab) {
+      ShenandoahThreadLocalData::gclab(thread)->undo_allocation(copy, size);
+    } else {
+      fill_with_object(copy, size);
+    }
+    return result;
+  }
+}
+
+
+// Haoran: p here is real ref
+// return real ref
+inline oop ShenandoahHeap::barrier_evacuate(oop p, Thread* thread) {
+  
+  shenandoah_assert_in_heap(NULL, p);
+
+  if (ShenandoahThreadLocalData::is_oom_during_evac(Thread::current())) {
+    // Modified by Shi
+    ShouldNotReachHere();
+  }
+
+  assert(ShenandoahThreadLocalData::is_evac_allowed(thread), "must be enclosed in oom-evac scope");
+  size_t size = (size_t) p->size();
+
+  assert(!heap_region_containing(p)->is_humongous(), "never evacuate humongous objects");
+  // Modified by Haoran for evacuaion
+  ShenandoahHeapRegion* region = heap_region_containing(p);
+
+  bool alloc_from_gclab = true;
+  HeapWord* filler = NULL;
+  if(size < ShenandoahGCLABSize/4) {
+    filler = allocate_from_gclab(thread, size);
+  }
+  if (filler == NULL) {
+    ShenandoahAllocRequest req = ShenandoahAllocRequest::for_shared_gc(size);
+    filler = allocate_memory(req);
+    alloc_from_gclab = false;
+  }
+
+  if (filler == NULL) {
+    // Modified by Shi
+    ShouldNotReachHere();
+    control_thread()->handle_alloc_failure_evac(size);
+    _oom_evac_handler.handle_out_of_memory_during_evacuation();
+  }
+
+  assert(filler != NULL, "Invariant!");
+#ifdef RELEASE_CHECK
+  if (filler == NULL) {
+    // Modified by Shi
+    ShouldNotReachHere();
+  }
+#endif
+
+  // Copy the object and initialize its forwarding ptr:
+  HeapWord* copy = filler;
+  oop copy_val = oop(copy);
+
+  Copy::aligned_disjoint_words((HeapWord*) p, copy, size);
+  oop result = ShenandoahForwarding::try_update_forwardee(p, copy_val);
+  
+  if (oopDesc::equals_raw(result, copy_val)) {
+    shenandoah_assert_correct(NULL, copy_val);
+    collection_set()->add_region_to_update(heap_region_containing(copy));
+    return copy_val;
+  }  else {
+    if (alloc_from_gclab) {
+      ShenandoahThreadLocalData::gclab(thread)->undo_allocation(copy, size);
+    } else {
+      fill_with_object(copy, size);
+    }
+    return result;
+  }
+}
+
+// Haoran: p here is real ref
+// return real ref
+inline oop ShenandoahHeap::evacup_root(oop p, Thread* thread, size_t worker_id) {
+  
+  shenandoah_assert_in_heap(NULL, p);
+
+  if (ShenandoahThreadLocalData::is_oom_during_evac(Thread::current())) {
+    // Modified by Shi
+    ShouldNotReachHere();
+  }
+
+  assert(ShenandoahThreadLocalData::is_evac_allowed(thread), "must be enclosed in oom-evac scope");
+  size_t size = (size_t) p->size();
+
+  assert(!heap_region_containing(p)->is_humongous(), "never evacuate humongous objects");
+  // Modified by Haoran for evacuaion
+  ShenandoahHeapRegion* region = heap_region_containing(p);
+
+  bool alloc_from_gclab = true;
+  HeapWord* filler = NULL;
+  if(size < ShenandoahGCLABSize/4) {
+    filler = allocate_from_gclab(thread, size);
+  }
+  if (filler == NULL) {
+    ShenandoahAllocRequest req = ShenandoahAllocRequest::for_shared_gc(size);
+    filler = allocate_memory(req);
+    alloc_from_gclab = false;
+  }
+
+  if (filler == NULL) {
+    // Modified by Shi
+    ShouldNotReachHere();
+    control_thread()->handle_alloc_failure_evac(size);
+    _oom_evac_handler.handle_out_of_memory_during_evacuation();
+  }
+
+  assert(filler != NULL, "Invariant!");
+#ifdef RELEASE_CHECK
+  if (filler == NULL) {
+    // Modified by Shi
+    ShouldNotReachHere();
+  }
+#endif
+
+  // Copy the object and initialize its forwarding ptr:
+  HeapWord* copy = filler;
+  oop copy_val = oop(copy);
+
+  Copy::aligned_disjoint_words((HeapWord*) p, copy, size);
+  oop result = ShenandoahForwarding::try_update_forwardee(p, copy_val);
+  
+  if (oopDesc::equals_raw(result, copy_val)) {
+    shenandoah_assert_correct(NULL, copy_val);
     push_to_root_object_update_queue(p, worker_id);
     // root_object_queue()->push(p);
 

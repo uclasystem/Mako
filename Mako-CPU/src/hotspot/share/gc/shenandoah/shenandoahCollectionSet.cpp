@@ -114,7 +114,7 @@ void ShenandoahCollectionSet::add_region_to_update(ShenandoahHeapRegion* r) {
   assert(Thread::current()->is_VM_thread(), "Must be VMThread");
   assert(!is_in_update_set(r), "Already in collection set");
   // _cset_map[r->region_number()] = 1;
-  _cset_map[r->region_number()] = 1;
+  _cset_map[r->region_number()] |= 1;
 }
 
 bool ShenandoahCollectionSet::add_region_check_for_duplicates(ShenandoahHeapRegion* r) {
@@ -297,6 +297,28 @@ bool ShenandoahCollectionSet::select_local_process_regions() {
     _sync_map[region_index] |= 4;
     _cset_map[region_index] |= 4;
     cur_pages = new_pages;
+  }
+  return true;
+}
+
+// Haoran: decide which regions are processed by the CPU server and which regions are processed by the memory server
+bool ShenandoahCollectionSet::select_local_update_regions() {
+  if(_heap->gc_start_threshold > _heap->max_capacity() * (ShenandoahInitFreeThreshold - 1) / 100) {
+    size_t num_regions = _heap->num_regions();
+    for (size_t i = 0; i < num_regions; i++) {
+      if(!is_in_update_set(i)) continue;
+      ShenandoahHeapRegion* region = _heap->get_region(i);
+      _cset_map[i] |= 4;
+    }
+    return false;
+  }
+  size_t num_regions = _heap->num_regions();
+  for (size_t i = 0; i < num_regions; i++) {
+    if(!is_in_update_set(i)) continue;
+    ShenandoahHeapRegion* region = _heap->get_region(i);
+    unsigned char mask = 0xFF;
+    mask ^= 4;
+    _cset_map[i] &= mask;
   }
   return true;
 }
@@ -531,4 +553,15 @@ void ShenandoahCollectionSet::set_update_finished(size_t region_number) {
   assert(region_number < _heap->num_regions(), "Sanity");
   char v = Atomic::load(&_cset_map[region_number]);
   Atomic::store((char)(v | 8), &_cset_map[region_number]);
+}
+
+bool ShenandoahCollectionSet::is_evac_finished(size_t region_number) const {
+  assert(region_number < _heap->num_regions(), "Sanity");
+  return (Atomic::load(&_cset_map[region_number]) & 16);
+}
+
+void ShenandoahCollectionSet::set_evac_finished(size_t region_number) {
+  assert(region_number < _heap->num_regions(), "Sanity");
+  char v = Atomic::load(&_cset_map[region_number]);
+  Atomic::store((char)(v | 16), &_cset_map[region_number]);
 }

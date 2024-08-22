@@ -449,6 +449,7 @@ public:
   void entry_uncommit(double shrink_before);
   void read_data_pre_final_mark();
   void write_data_after_final_mark();
+  void write_data_after_init_update();
 
   void flush_heap();
 private:
@@ -786,6 +787,8 @@ private:
   ShenandoahEvacOOMHandler _oom_evac_handler;
 
   ShenandoahAliveTable* _alive_table;
+  void evacuate_roots();
+  void update_roots();
   void evacuate_and_update_roots();
 
 public:
@@ -810,7 +813,9 @@ public:
   // Evacuates object src. Returns the evacuated object, either evacuated
   // by this thread, or by some other thread.
   inline oop evacuate_object(oop src, Thread* thread);
-  inline oop evacuate_root(oop src, Thread* thread, size_t worker_id);
+  inline oop barrier_evacuate(oop src, Thread* thread);
+  inline oop evac_root(oop src, Thread* thread, size_t worker_id);
+  inline oop evacup_root(oop src, Thread* thread, size_t worker_id);
   inline void update_root(oop src);
   inline void update_object(oop src);
   oop process_region(oop src, Thread* thread);

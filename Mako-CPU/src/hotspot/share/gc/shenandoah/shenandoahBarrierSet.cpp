@@ -289,24 +289,43 @@ void ShenandoahBarrierSet::load_reference_barrier_array_copy(oop* p) {
 #endif
   if(!_heap->is_in((HeapWord*)obj)) {
     size_t index = 0;
-    while(!_heap->collection_set()->is_in_update_set(index) && index < _heap->num_regions()) {
-      index ++;
+    if(!_heap->is_evacuation_in_progress()) return;
+    if(_heap->_cpu_server_flags->_should_start_update == false) {
+
+      while(!_heap->collection_set()->is_in_evac_set(index) && index < _heap->num_regions()) {
+        index ++;
+      }
+      if(index == _heap->num_regions()) return;
+      while(!_heap->collection_set()->is_evac_finished(index)) {
+        os::naked_short_sleep(5);
+      }
+      return;
+    } else {
+      while(!_heap->collection_set()->is_in_update_set(index) && index < _heap->num_regions()) {
+        index ++;
+      }
+      if(index == _heap->num_regions()) return;
+      while(!_heap->collection_set()->is_update_finished(index)) {
+        os::naked_short_sleep(5);
+      }
+      return;
     }
-    if(index == _heap->num_regions()) return;
-    if(!_heap->collection_set()->is_in_update_set(index) || !_heap->is_evacuation_in_progress()) return;
-    while(!_heap->collection_set()->is_update_finished(index)) {
-      os::naked_short_sleep(5);
-    }
-    return;
   } else{
     size_t index = _heap->heap_region_index_containing((HeapWord*)obj);
-    if(!_heap->collection_set()->is_in_update_set(index) || !_heap->is_evacuation_in_progress()) return;
-    while(!_heap->collection_set()->is_update_finished(index)) {
-      os::naked_short_sleep(5);
+    if(!_heap->is_evacuation_in_progress()) return;
+    if(_heap->_cpu_server_flags->_should_start_update == false) {
+      if(!_heap->collection_set()->is_in_evac_set(index)) return;
+      ShouldNotReachHere();
+      while(!_heap->collection_set()->is_evac_finished(index)) {
+        os::naked_short_sleep(5);
+      }
+    } else {
+      if(!_heap->collection_set()->is_in_update_set(index)) return;
+      while(!_heap->collection_set()->is_update_finished(index)) {
+        os::naked_short_sleep(5);
+      }
     }
   }
-
-
 }
 
 oop ShenandoahBarrierSet::load_reference_barrier_impl(oop obj) {

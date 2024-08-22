@@ -111,6 +111,8 @@ public:
 
   bool is_update_finished(size_t region_number)    const;
   void set_update_finished(size_t region_number);
+  bool is_evac_finished(size_t region_number)    const;
+  void set_evac_finished(size_t region_number);
 
   void print_on(outputStream* out) const;
 
@@ -124,6 +126,7 @@ public:
   void copy_cset_to_sync();
   // void copy_compacted_to_cset();
   bool select_local_process_regions();
+  bool select_local_update_regions();
   void add_region_to_local_set(size_t region_index);
 
 
