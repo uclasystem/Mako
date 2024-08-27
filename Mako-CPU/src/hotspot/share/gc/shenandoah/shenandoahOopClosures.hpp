@@ -247,6 +247,30 @@ public:
   // virtual bool do_metadata()        { return true; }
 };
 
+class ShenandoahSemeruCheckHeapRefsClosure : public BasicOopIterateClosure {
+private:
+  ShenandoahHeap* _heap;
+
+  template <class T>
+  void do_oop_work(T* p) {
+     T o = RawAccess<>::oop_load(p);
+    if (!CompressedOops::is_null(o)) {
+      oop obj = CompressedOops::decode_not_null(o);
+      if (_heap->in_evac_set(obj)) {
+        ShouldNotReachHere();
+      }
+    }
+  }
+
+public:
+  ShenandoahSemeruCheckHeapRefsClosure() :
+    _heap(ShenandoahHeap::heap()) {}
+
+  virtual void do_oop(narrowOop* p) { do_oop_work(p); }
+  virtual void do_oop(oop* p)       { do_oop_work(p); }
+  // virtual bool do_metadata()        { return true; }
+};
+
 class ShenandoahTraversalSuperClosure : public MetadataVisitingOopIterateClosure {
 private:
   ShenandoahTraversalGC* const _traversal_gc;

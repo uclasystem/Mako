@@ -707,7 +707,48 @@ Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& acces
 
 void ShenandoahBarrierSetC2::clone(GraphKit* kit, Node* src, Node* dst, Node* size, bool is_array) const {
   assert(!src->is_AddP(), "unexpected input");
-  BarrierSetC2::clone(kit, src, dst, size, is_array);
+  // Exclude the header but include array length to copy by 8 bytes words.
+  // Can't use base_offset_in_bytes(bt) since basic type is unknown.
+  int base_off = is_array ? arrayOopDesc::length_offset_in_bytes() :
+                            instanceOopDesc::base_offset_in_bytes();
+  // base_off:
+  // 8  - 32-bit VM
+  // 12 - 64-bit VM, compressed klass
+  // 16 - 64-bit VM, normal klass
+  if (base_off % BytesPerLong != 0) {
+    assert(UseCompressedClassPointers, "");
+    if (is_array) {
+      // Exclude length to copy by 8 bytes words.
+      base_off += sizeof(int);
+    } else {
+      // Include klass to copy by 8 bytes words.
+      base_off = instanceOopDesc::klass_offset_in_bytes();
+    }
+    assert(base_off % BytesPerLong == 0, "expect 8 bytes alignment");
+  }
+
+  
+
+
+  Node* src_base  = kit->basic_plus_adr(src,  base_off);
+  Node* dst_base = kit->basic_plus_adr(dst, base_off);
+
+  // Compute the length also, if needed:
+  Node* countx = size;
+  countx = kit->gvn().transform(new SubXNode(countx, kit->MakeConX(base_off)));
+  countx = kit->gvn().transform(new URShiftXNode(countx, kit->intcon(LogBytesPerLong) ));
+
+  const TypePtr* raw_adr_type = TypeRawPtr::BOTTOM;
+
+  ArrayCopyNode* ac = ArrayCopyNode::make(kit, false, src_base, NULL, dst_base, NULL, countx, true, false);
+  ac->set_clonebasic();
+  Node* n = kit->gvn().transform(ac);
+  if (n == ac) {
+    ac->_adr_type = TypeRawPtr::BOTTOM;
+    kit->set_predefined_output_for_runtime_call(ac, ac->in(TypeFunc::Memory), raw_adr_type);
+  } else {
+    kit->set_all_memory(n);
+  }
 }
 
 // Support for GC barriers emitted during parsing

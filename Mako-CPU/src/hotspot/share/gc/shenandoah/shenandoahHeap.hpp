@@ -819,6 +819,7 @@ public:
   inline void update_root(oop src);
   inline void update_object(oop src);
   oop process_region(oop src, Thread* thread);
+  oop wait_region(oop src, Thread* thread);
 
   // Call before/after evacuation.
   void enter_evacuation();

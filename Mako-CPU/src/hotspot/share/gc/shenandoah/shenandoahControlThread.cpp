@@ -419,7 +419,7 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
   log_debug(semeru)("CPU Server Finishes Final Marking!");
   if(!heap->collection_set()->is_empty()) {
 
-    heap->write_data_after_final_mark();
+    // heap->write_data_after_final_mark();
     heap->entry_evac();
     log_debug(semeru)("Finish Evac Local!");
     while(true) {
@@ -448,10 +448,10 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
 
     // Complete evacuation and start reference updating
     heap->vmop_entry_init_updaterefs();
-    heap->update_root_objects();
+    // heap->update_root_objects();
+    // heap->write_data_after_final_mark();
 
     heap->entry_updaterefs();
-    heap->write_data_after_final_mark();
 
 
     while(true) {

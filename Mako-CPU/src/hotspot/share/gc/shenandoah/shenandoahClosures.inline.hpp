@@ -106,7 +106,12 @@ void ShenandoahSemeruEvacuateRootsClosure::do_oop_work(T* p) {
 
       assert(resolved != NULL, "Invariant!");
       assert(_heap->heap_region_containing(resolved) != _heap->heap_region_containing(obj)  , "Invariant!");
-
+#ifdef RELEASE_CHECK
+      if(_heap->in_evac_set(resolved)) {
+        tty->print("Resolved obj: 0x%lx is still in evac set! Original obj: 0x%lx\n", (size_t)resolved, (size_t)obj);
+        ShouldNotReachHere();
+      }
+#endif
       RawAccess<IS_NOT_NULL>::oop_store(p, resolved);
       
     }
@@ -184,11 +189,20 @@ void ShenandoahSemeruUpdateRootsClosure::do_oop_work(T* p) {
     oop obj = CompressedOops::decode_not_null(o);
     assert(Universe::heap()->is_in(obj), "wrong invariant");
     assert(!_heap->in_evac_set(obj), "Should have been evacuated and updated!");
-#ifdef RELEASE_CHECK
+
     if(_heap->in_evac_set(obj)) {
-      ShouldNotReachHere();
-    }
+      oop fwd = ShenandoahForwarding::get_forwardee(obj);
+#ifdef RELEASE_CHECK
+      if (_heap->in_evac_set(fwd)) {
+        log_debug(semeru)("In update refs, Fwd: 0x%lx is still in evac set! Original obj: 0x%lx\n", (size_t)fwd, (size_t)obj);
+        ShouldNotReachHere();
+      }
+      log_debug(semeru)("!!During init update refs, there are objects pointing to evac set obj: 0x%lx in evac set region: %lu!\n", (size_t)obj, _heap->heap_region_index_containing(obj));
 #endif
+      obj = fwd;
+      RawAccess<IS_NOT_NULL>::oop_store(p, obj);
+    }
+
     _heap->update_object(obj);
     _heap->collection_set()->add_region_to_local_set(_heap->heap_region_index_containing(obj));
   }

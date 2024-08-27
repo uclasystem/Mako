@@ -175,57 +175,6 @@ public:
   }
 };
 
-// class ShenandoahEvictTask : public AbstractGangTask {
-// private:
-//   ShenandoahHeap* _heap;
-//   int* _region_index;
-// public:
-//   ShenandoahEvictTask(ShenandoahHeap* heap, int* region_index) :
-//     AbstractGangTask("Shenandoah Prefetch Semeru Heap"),
-//     _heap(heap),
-//     _region_index(region_index){}
-
-//   virtual void work(uint worker_id) {
-    
-//     int new_region_index = Atomic::add(1, _region_index);
-//     int num_regions = _heap->num_regions();
-//     ShenandoahCollectionSet* cset = _heap->collection_set();
-//     while(new_region_index <= num_regions) {
-//       new_region_index -= 1;
-//       if(!cset->is_in_update_set(new_region_index)) {
-//         new_region_index = Atomic::add(1, _region_index);
-//         continue;
-//       }
-//       ShenandoahHeapRegion* corr_region = _heap->get_corr_region(new_region_index);
-//       ShenandoahHeapRegion* region = _heap->get_region(new_region_index);
-//       assert(!region->is_humongous_continuation(), "Invariant!");
-//       if(cset->is_in_evac_set(corr_region->region_number()) && !cset->is_in_local_update_set(corr_region)) {
-//         assert(!corr_region->is_humongous(), "Cannot be!");
-//         _heap->rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-//       }
-//       else if(!cset->is_in_local_update_set(new_region_index)) {
-//         if(region->is_humongous_start()) {
-//           oop h_obj = oop(region->bottom());
-//           size_t h_size = (h_obj->size()) * 8;
-//           size_t aligned_size = ((h_size - 1)/4096 + 1) * 4096;
-//           _heap->rdma_evict(0, (char*)region->bottom(), aligned_size);
-//         }
-//         else {
-//           assert(!region->is_humongous(), "invariant!");
-//           if(cset->is_in_evac_set(new_region_index)){
-//             // _heap->rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-//           }
-//           else {
-//             _heap->rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-//           }
-//         }
-
-//       }
-//       new_region_index = Atomic::add(1, _region_index);
-//     }
-//   }
-// };
-
 class ShenandoahPrefetchTask : public AbstractGangTask {
 private:
   ShenandoahHeap* _heap;
@@ -1325,6 +1274,7 @@ public:
         ShouldNotReachHere();
       }
 #endif
+      _heap->fill_with_object((HeapWord*)orig_target_obj, ((HeapWord*)orig_target_obj) + size);
       // _heap->fill_with_dummy_object((HeapWord*)orig_target_obj, ((HeapWord*)orig_target_obj) + size);
     }
     else {
@@ -1392,101 +1342,6 @@ void ShenandoahHeap::flush_cache_range(size_t start, size_t end) {
   // _mm_mfence();
 }
 
-// class ShenandoahUpdateTask : public AbstractGangTask {
-// private:
-//   ShenandoahHeap* const _sh;
-//   ShenandoahCollectionSet* const _cs;
-// public:
-//   ShenandoahUpdateTask(ShenandoahHeap* sh,
-//                            ShenandoahCollectionSet* cs) :
-//     AbstractGangTask("Parallel Update Task"),
-//     _sh(sh),
-//     _cs(cs)
-//   {}
-
-//   void work(uint worker_id) {
-//     ShenandoahConcurrentUpdateRegionObjectClosure update_cl(_sh);
-//     ShenandoahHeapRegion* r;
-//     // Modified by Haoran for remote compaction
-//     while ((r =_cs->claim_next()) != NULL) {
-//       if(_cs->is_in_local_update_set(r)) {
-//         assert(r->top() > r->bottom(), "all-garbage regions are reclaimed early");
-//         _sh->marked_object_iterate(r, &update_cl);
-//         // log_debug(semeru)("Finish updating for region %lx", r->region_number());
-//       }
-//     }
-//   }
-// };
-
-// class ShenandoahEvacuationTask : public AbstractGangTask {
-// private:
-//   ShenandoahHeap* const _sh;
-//   ShenandoahCollectionSet* const _cs;
-//   bool _concurrent;
-// public:
-//   ShenandoahEvacuationTask(ShenandoahHeap* sh,
-//                            ShenandoahCollectionSet* cs,
-//                            bool concurrent) :
-//     AbstractGangTask("Parallel Evacuation Task"),
-//     _sh(sh),
-//     _cs(cs),
-//     _concurrent(concurrent)
-//   {}
-
-//   void work(uint worker_id) {
-//     if (_concurrent) {
-//       ShenandoahConcurrentWorkerSession worker_session(worker_id);
-//       ShenandoahSuspendibleThreadSetJoiner stsj(ShenandoahSuspendibleWorkers);
-//       ShenandoahEvacOOMScope oom_evac_scope;
-//       do_work();
-//     } else {
-//       ShenandoahParallelWorkerSession worker_session(worker_id);
-//       ShenandoahEvacOOMScope oom_evac_scope;
-//       do_work();
-//     }
-//   }
-
-// private:
-//   void do_work() {
-//     ShenandoahConcurrentEvacuateRegionObjectClosure cl(_sh);
-//     ShenandoahConcurrentUpdateRegionObjectClosure update_cl(_sh);
-//     ShenandoahHeapRegion* r;
-//     while ((r =_cs->claim_next()) != NULL) {
-//       // assert(r->has_live(), "all-garbage regions are reclaimed early");
-//       assert(_cs->is_in_local_update_set(r), "Invariant!");
-//       if(_cs->is_in_evac_set(r)) {
-//         assert(r->has_live(), "all-garbage regions are reclaimed early");
-//         assert(_sh->marking_context()->top_at_mark_start(r) == r->top(), "Do not evacuate regions that have unmarked objects!");
-//         r->_evac_top = r->bottom();
-//         _sh->marked_object_iterate(r, &cl);
-//         // _sh->fill_with_dummy_object(r->sync_between_mem_and_cpu()->_evac_start + r->get_live_data_words(), r->sync_between_mem_and_cpu()->_evac_start + align_up(r->get_live_data_words(), 512), true);
-// #ifdef RELEASE_CHECK
-//         log_debug(semeru)("Finish compaction updating for region %lu", r->region_number());
-// #endif
-//       }
-//       else if(_cs->is_in_update_set(r) && !r->_selected_to && !r->is_humongous_continuation()) {
-//         assert(!_cs->is_in_evac_set(r->region_number()), "Invariant!");
-//         assert(r->has_live(), "all-garbage regions are reclaimed early");
-//         assert(!r->is_humongous_continuation(), "Invariant!");
-//         assert(!r->is_cset(), "Invariant!");
-//         _sh->marked_object_iterate(r, &update_cl);
-// #ifdef RELEASE_CHECK
-//         log_debug(semeru)("Finish updating for region %lu", r->region_number());
-// #endif
-//       }
-
-//       if (ShenandoahPacing) {
-//         _sh->pacer()->report_evac(r->used() >> LogHeapWordSize);
-//       }
-
-//       if (_sh->check_cancelled_gc_and_yield(_concurrent)) {
-//         break;
-//       }
-//     }
-//   }
-// };
-
-
 class ShenandoahEvacuationTask : public AbstractGangTask {
 private:
   ShenandoahHeap* const _sh;
@@ -1518,7 +1373,6 @@ public:
 private:
   void do_work() {
     ShenandoahConcurrentEvacuateRegionObjectClosure cl(_sh);
-    ShenandoahConcurrentUpdateRegionObjectClosure update_cl(_sh);
     ShenandoahHeapRegion* r;
     while ((r =_cs->claim_next()) != NULL) {
       // assert(r->has_live(), "all-garbage regions are reclaimed early");
@@ -1530,7 +1384,7 @@ private:
         _sh->marked_object_iterate(r, &cl);
         // _sh->fill_with_dummy_object(r->sync_between_mem_and_cpu()->_evac_start + r->get_live_data_words(), r->sync_between_mem_and_cpu()->_evac_start + align_up(r->get_live_data_words(), 512), true);
 #ifdef RELEASE_CHECK
-        log_debug(semeru)("Finish compaction updating for region %lu", r->region_number());
+        // log_debug(semeru)("Finish evacuation for region %lu", r->region_number());
 #endif
       }
 
@@ -1710,24 +1564,67 @@ oop ShenandoahHeap::process_region(oop src, Thread* thread) {
   if (is_evacuation_in_progress()) {
     if (_cpu_server_flags->_should_start_update == false) {
       if (in_evac_set(src)) {
+        oop fwd;
         if (collection_set()->is_in_local_update_set(index)) {
-          oop fwd = ShenandoahForwarding::get_forwardee(src);
+          fwd = ShenandoahForwarding::get_forwardee(src);
+          // log_debug(semeru)("src object: 0x%lx, fwd object: 0x%lx, index: %lu\n", (size_t)src, (size_t)fwd, index);
           if (oopDesc::equals_raw(src, fwd)) {
-            return barrier_evacuate(src, thread);
+            fwd = barrier_evacuate(src, thread);
           }
-          return fwd;
         }
         else {
           while(!collection_set()->is_evac_finished(index)) {
             os::naked_short_sleep(5);
           }
+          fwd = ShenandoahForwarding::get_forwardee(src);
+          if(fwd == src) {
+            ShouldNotReachHere();
+            fwd = _alive_table->get_target_address(src);
+          }
         }
+        src = fwd;
+      } else if (collection_set()->is_in_update_set(index)) {
+        // size_t tmp_id = 0;
+        // while (tmp_id < num_regions()) {
+        //   if (collection_set()->is_in_evac_set(tmp_id)) {
+        //     if((size_t)src >=(size_t)(get_region(tmp_id)->sync_between_mem_and_cpu()->_evac_start) && (size_t)src < (size_t)(get_region(tmp_id)->sync_between_mem_and_cpu()->_evac_start) + align_up(get_region(tmp_id)->get_live_data_bytes(), 4096)) {
+        //       break;
+        //     }
+        //   }
+        //   tmp_id ++;
+        // }
+        // if(tmp_id < num_regions()) {
+        //   tmp_id = 0;
+        //   while (tmp_id < num_regions()) {
+        //     if (collection_set()->is_in_evac_set(tmp_id)) {
+        //       if(!collection_set()->is_evac_finished(tmp_id)) {
+        //         log_debug(semeru)("src object: 0x%lx, index: %lu\n", (size_t)src, index);
+        //         ShouldNotReachHere();
+        //         break;
+        //       }
+        //     }
+        //     tmp_id ++;
+        //   }
+        // }
       }
     } else {
       if (in_evac_set(src)) {
+        tty->print("Src object is in evac set, src: %lx, index: %lu\n", (size_t)src, index);
+        size_t size_of_obj = src->size();
+        tty->print("Size of object: %lu\n", size_of_obj);
+        oop fwd = ShenandoahForwarding::get_forwardee(src);
+        size_t klass_addr = (size_t)src->klass();
+        tty->print("Klass address: %lx\n", klass_addr);
+        tty->print("Forwarding address: %lx\n", (size_t)fwd);
+        for(size_t i = 0; i < size_of_obj * 10; i += 1) {
+          tty->print("0x%lx: %lx\n", (size_t)((HeapWord*)src + i), *(size_t*)(((HeapWord*)src) + i));
+        }
         ShouldNotReachHere();
       }
       if (collection_set()->is_in_local_update_set(index)) {
+        // while(!collection_set()->is_update_finished(index)) {
+        //   os::naked_short_sleep(5);
+        // }
         update_object(src);
       }
       else {
@@ -1737,7 +1634,6 @@ oop ShenandoahHeap::process_region(oop src, Thread* thread) {
       }
     }
   }
-  // Haoran: debug this!!
 #ifdef RELEASE_CHECK
   if(in_evac_set(src)) {
     ShouldNotReachHere();
@@ -1745,6 +1641,102 @@ oop ShenandoahHeap::process_region(oop src, Thread* thread) {
   }
 #endif
   return src;
+}
+
+oop ShenandoahHeap::wait_region(oop src, Thread* thread) {
+  // size_t index = heap_region_index_containing((HeapWord*)src);
+  if (is_evacuation_in_progress()) {
+    if (_cpu_server_flags->_should_start_update == false) {
+      size_t index = 0;
+      while(index < num_regions()) {
+        if (collection_set()->is_in_evac_set(index)) {
+          while(!collection_set()->is_evac_finished(index)) {
+            os::naked_short_sleep(5);
+          }
+        }
+        index ++;
+      }
+      if(is_in((HeapWord*) src)) {
+        oop fwd; 
+        if (in_evac_set(src)) {
+          fwd = ShenandoahForwarding::get_forwardee(src);
+          if(fwd == src) {
+            ShouldNotReachHere(); // Should remove it when having remote evac regions
+            fwd = _alive_table->get_target_address(src);
+          }
+        } else {
+          fwd = src;
+        }
+#ifdef RELEASE_CHECK
+        if(in_evac_set(fwd)) {
+          ShouldNotReachHere();
+        }
+#endif
+        return fwd;
+      } else {
+        return src;
+      }
+    } else {
+      if (is_in((HeapWord*)src) && in_evac_set(src)) {
+        size_t region_idx = heap_region_index_containing((HeapWord*)src);
+        tty->print("In wait region, Src object is in evac set, src: %lx, index: %lu\n", (size_t)src, region_idx);
+        ShouldNotReachHere();
+      }
+      size_t index = 0;
+      while (index < num_regions()) {
+        if (collection_set()->is_in_local_update_set(index)) {
+          while(!collection_set()->is_update_finished(index)) {
+            os::naked_short_sleep(5);
+          }
+        }
+        index ++;
+      }
+    }
+#ifdef RELEASE_CHECK
+    if(is_in((HeapWord*)src) && in_evac_set(src)) {
+      ShouldNotReachHere();
+      return ShenandoahForwarding::get_forwardee(src);
+    }
+#endif
+  }
+  return src;
+//   if (is_evacuation_in_progress()) {
+//     if (_cpu_server_flags->_should_start_update == false) {
+//       if (in_evac_set(src)) {
+//         while(!collection_set()->is_evac_finished(index)) {
+//           os::naked_short_sleep(5);
+//         }
+//         oop fwd = ShenandoahForwarding::get_forwardee(src);
+//         if(fwd == src) {
+//           ShouldNotReachHere(); // Should remove it when having remote evac regions
+//           fwd = _alive_table->get_target_address(src);
+//         }
+// #ifdef RELEASE_CHECK
+//         if(in_evac_set(fwd)) {
+//           ShouldNotReachHere();
+//         }
+// #endif
+//         return fwd;
+//       }
+//     } else {
+//       if (in_evac_set(src)) {
+//         tty->print("In wait region, Src object is in evac set, src: %lx, index: %lu\n", (size_t)src, index);
+//         ShouldNotReachHere();
+//       }
+//       if (collection_set()->is_in_update_set(index)) {
+//         while(!collection_set()->is_update_finished(index)) {
+//           os::naked_short_sleep(5);
+//         }
+//       }
+//     }
+//   }
+// #ifdef RELEASE_CHECK
+//   if(in_evac_set(src)) {
+//     ShouldNotReachHere();
+//     return ShenandoahForwarding::get_forwardee(src);
+//   }
+// #endif
+//   return src;
 }
 
 void ShenandoahHeap::evacuate_and_update_roots() {
@@ -2607,37 +2599,20 @@ void ShenandoahHeap::write_data_after_final_mark() {
       for(size_t i = 0; i < _num_regions; i++) {
         ShenandoahHeapRegion* region = get_region(i);
         
-        // if(!collection_set()->is_in_update_set(i) && !region->_selected_to) continue;
         if(!collection_set()->is_in_update_set(i) || region->_selected_to) continue;
         if(region->is_humongous_continuation()) continue;
         assert(!region->is_humongous_continuation(), "Invariant!");
 
         if(collection_set()->is_in_evac_set(i)) {
           assert(region->is_cset(), "Invariant!");
-          // rdma_write_offset_table(i);
-          rdma_write(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
           if(!collection_set()->is_in_local_update_set(i)) {
+// #ifdef RELEASE_CHECK
+//             log_debug(semeru)("evicted region: 0x%lx, bottom: 0x%lx, top: 0x%lx", region->region_number(), (size_t)region->bottom(), (size_t)region->top());
+//             log_debug(semeru)("evicted target evac start addr: 0x%lx, size: 0x%lx", (size_t)region->sync_between_mem_and_cpu()->_evac_start, align_up(region->get_live_data_bytes(), 4096));
+// #endif
+            rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
             rdma_evict(0, (char*)region->sync_between_mem_and_cpu()->_evac_start, align_up(region->get_live_data_bytes(), 4096));
           }
-        }
-        // else if(region->_selected_to){
-        //   assert(!region->is_cset(), "invariant!");
-        //   rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-        // }
-        else if(!collection_set()->is_in_local_update_set(i)) {
-          if(region->is_humongous_start()) {
-            oop h_obj = oop(region->bottom());
-            size_t h_size = (h_obj->size()) * 8;
-            size_t aligned_size = ((h_size - 1)/4096 + 1) * 4096;
-            rdma_evict(0, (char*)region->bottom(), aligned_size);
-            // log_debug(semeru,rdma)("humongous_region[0x%lx], bottom: 0x%lx, size: 0x%lx", region->region_number(), (size_t)region->bottom(), aligned_size);
-          }
-          else {
-            assert(!region->is_humongous(), "invariant!");
-            rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-            // log_debug(semeru,rdma)("_region[0x%lx], bottom: 0x%lx, top: 0x%lx, size: 0x%lx", region->region_number(), (size_t)region->bottom(), (size_t)region->top(),ShenandoahHeapRegion::region_size_bytes() );
-          }
-
         }
       }
     }
@@ -2911,13 +2886,13 @@ void ShenandoahHeap::op_final_mark() {
           collection_set()->add_region_to_update(r);
         }
 
-        if(collection_set()->is_in_evac_set(i)) {
-          if(collection_set()->is_in_local_update_set(i)) {
-            tty->print("region: %lu is in local update set\n", i);
-          } else {
-            tty->print("region: %lu is in remote update set\n", i);
-          }
-        }
+        // if(collection_set()->is_in_evac_set(i)) {
+        //   if(collection_set()->is_in_local_update_set(i)) {
+        //     tty->print("region: %lu is in local update set\n", i);
+        //   } else {
+        //     tty->print("region: %lu is in remote update set\n", i);
+        //   }
+        // }
       }
       
       {
@@ -2952,7 +2927,7 @@ void ShenandoahHeap::op_final_mark() {
         ShenandoahHeapLocker locker(lock());
         _free_set->rebuild();
       }
-      // write_data_after_final_mark();
+      write_data_after_final_mark();
       return;
     } else {
       // ShouldNotReachHere();
@@ -3077,7 +3052,10 @@ private:
     ShenandoahConcurrentUpdateRegionObjectClosure update_cl(_sh);
     ShenandoahHeapRegion* r;
     while ((r =_cs->claim_next()) != NULL) {
-      if(_cs->is_in_update_set(r) && !r->is_humongous_continuation()) {
+      if(_cs->is_in_update_set(r) && !_cs->is_in_evac_set(r) && !r->is_humongous_continuation()) {
+#ifdef RELEASE_CHECK
+        log_debug(semeru)("Start updating for region %lu", r->region_number());
+#endif
         assert(!_cs->is_in_evac_set(r->region_number()), "Invariant!");
         assert(r->has_live(), "all-garbage regions are reclaimed early");
         assert(!r->is_humongous_continuation(), "Invariant!");
@@ -3655,6 +3633,7 @@ void ShenandoahHeap::update_heap_references(bool concurrent) {
 
 void ShenandoahHeap::op_init_updaterefs() {
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "must be at safepoint");
+  tty->print("Start update refs pause!!!");
   retire_and_reset_gclabs();
   make_parsable(true);
   for (uint i = 0; i < num_regions(); i++) {
@@ -3676,6 +3655,7 @@ void ShenandoahHeap::op_init_updaterefs() {
     ShenandoahGCPhase phase(ShenandoahPhaseTimings::update_roots);
     update_roots();
   }
+  collection_set()->clear_current_index();
   collection_set()->copy_cset_to_sync();
  
   ShenandoahHeapLocker locker(lock());
@@ -3684,6 +3664,14 @@ void ShenandoahHeap::op_init_updaterefs() {
     ShenandoahHeapRegion* region = get_region(i);
     region->sync_between_mem_and_cpu()->_top = region->top();
     region->sync_between_mem_and_cpu()->_state = region->semeru_state_ordinal();
+
+    // if (_collection_set->is_in_update_set(i)) {
+    //   if (_collection_set->is_in_local_update_set(i)) {
+    //     tty->print("region: %lu is in local update set\n", i);
+    //   } else {
+    //     tty->print("region: %lu is in remote update set\n", i);
+    //   }
+    // }
   }
 
   _cpu_server_flags->_should_start_tracing = false;
@@ -3694,7 +3682,9 @@ void ShenandoahHeap::op_init_updaterefs() {
   _cpu_server_flags->_update_all_finished = false;
 
 
-  set_update_refs_in_progress(true);
+  // set_update_refs_in_progress(true);
+
+  write_data_after_init_update();
 
   log_debug(semeru)("Finish init update roots!");
 }
