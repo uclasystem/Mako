@@ -304,23 +304,23 @@ bool ShenandoahCollectionSet::select_local_process_regions() {
 // Haoran: decide which regions are processed by the CPU server and which regions are processed by the memory server
 bool ShenandoahCollectionSet::select_local_update_regions() {
   // if(_heap->gc_start_threshold > _heap->max_capacity() * (ShenandoahInitFreeThreshold - 1) / 100) {
-    size_t num_regions = _heap->num_regions();
-    for (size_t i = 0; i < num_regions; i++) {
-      if(!is_in_update_set(i)) continue;
-      ShenandoahHeapRegion* region = _heap->get_region(i);
-      _cset_map[i] |= 4;
-    }
-    return false;
+  //   size_t num_regions = _heap->num_regions();
+  //   for (size_t i = 0; i < num_regions; i++) {
+  //     if(!is_in_update_set(i)) continue;
+  //     ShenandoahHeapRegion* region = _heap->get_region(i);
+  //     _cset_map[i] |= 4;
+  //   }
+  //   return false;
   // }
-  // size_t num_regions = _heap->num_regions();
-  // for (size_t i = 0; i < num_regions; i++) {
-  //   if(!is_in_update_set(i)) continue;
-  //   ShenandoahHeapRegion* region = _heap->get_region(i);
-  //   unsigned char mask = 0xFF;
-  //   mask ^= 4;
-  //   _cset_map[i] &= mask;
-  // }
-  // return true;
+  size_t num_regions = _heap->num_regions();
+  for (size_t i = 0; i < num_regions; i++) {
+    if(!is_in_update_set(i)) continue;
+    ShenandoahHeapRegion* region = _heap->get_region(i);
+    unsigned char mask = 0xFF;
+    mask ^= 4;
+    _cset_map[i] &= mask;
+  }
+  return true;
 }
 
 void ShenandoahCollectionSet::add_region_to_local_set(size_t region_index) {

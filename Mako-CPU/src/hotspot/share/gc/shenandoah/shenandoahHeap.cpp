@@ -1684,7 +1684,7 @@ oop ShenandoahHeap::wait_region(oop src, Thread* thread) {
       }
       size_t index = 0;
       while (index < num_regions()) {
-        if (collection_set()->is_in_local_update_set(index)) {
+        if (collection_set()->is_in_update_set(index)) {
           while(!collection_set()->is_update_finished(index)) {
             os::naked_short_sleep(5);
           }
@@ -2629,6 +2629,7 @@ void ShenandoahHeap::write_data_after_final_mark() {
   log_debug(semeru,rdma)("cpu server flags start_addr: 0x%lx, size: 0x%lx", (size_t)_cpu_server_flags, (size_t)PAGE_SIZE );
 }
 
+
 void ShenandoahHeap::write_data_after_init_update() {
   int core_id = 1;
   cpu_set_t cpuset;
@@ -2652,7 +2653,7 @@ void ShenandoahHeap::write_data_after_init_update() {
         ShenandoahHeapRegion* region = get_region(i);
         
         // if(!collection_set()->is_in_update_set(i) && !region->_selected_to) continue;
-        if(!collection_set()->is_in_update_set(i) || region->_selected_to) continue;
+        if(!collection_set()->is_in_update_set(i)) continue;
         if(region->is_humongous_continuation()) continue;
         assert(!region->is_humongous_continuation(), "Invariant!");
 
@@ -2660,9 +2661,9 @@ void ShenandoahHeap::write_data_after_init_update() {
           assert(region->is_cset(), "Invariant!");
           // rdma_write_offset_table(i);
           rdma_write(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-          if(!collection_set()->is_in_local_update_set(i)) {
-            rdma_evict(0, (char*)region->sync_between_mem_and_cpu()->_evac_start, align_up(region->get_live_data_bytes(), 4096));
-          }
+          // if(!collection_set()->is_in_local_update_set(i)) {
+          //   rdma_evict(0, (char*)region->sync_between_mem_and_cpu()->_evac_start, align_up(region->get_live_data_bytes(), 4096));
+          // }
         }
         // else if(region->_selected_to){
         //   assert(!region->is_cset(), "invariant!");
@@ -2674,12 +2675,12 @@ void ShenandoahHeap::write_data_after_init_update() {
             size_t h_size = (h_obj->size()) * 8;
             size_t aligned_size = ((h_size - 1)/4096 + 1) * 4096;
             rdma_evict(0, (char*)region->bottom(), aligned_size);
-            // log_debug(semeru,rdma)("humongous_region[0x%lx], bottom: 0x%lx, size: 0x%lx", region->region_number(), (size_t)region->bottom(), aligned_size);
+            log_debug(semeru,rdma)("evict humongous_region[0x%lx], bottom: 0x%lx, size: 0x%lx", region->region_number(), (size_t)region->bottom(), aligned_size);
           }
           else {
             assert(!region->is_humongous(), "invariant!");
             rdma_evict(0, (char*)region->bottom(), ShenandoahHeapRegion::region_size_bytes());
-            // log_debug(semeru,rdma)("_region[0x%lx], bottom: 0x%lx, top: 0x%lx, size: 0x%lx", region->region_number(), (size_t)region->bottom(), (size_t)region->top(),ShenandoahHeapRegion::region_size_bytes() );
+            log_debug(semeru,rdma)("evict_region[0x%lx], bottom: 0x%lx, top: 0x%lx, size: 0x%lx", region->region_number(), (size_t)region->bottom(), (size_t)region->top(),ShenandoahHeapRegion::region_size_bytes() );
           }
 
         }

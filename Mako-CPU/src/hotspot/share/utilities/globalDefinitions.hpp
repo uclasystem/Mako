@@ -33,7 +33,7 @@
 
 // Modified by Haoran
 #define BARRIERINVARIANT
-#define RELEASE_CHECK
+// #define RELEASE_CHECK
 // #define MEMORYINVARIANT
 
 // #define UPDATE_REF_CHECK
