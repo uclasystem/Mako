@@ -65,6 +65,20 @@ private:
   inline void do_oop_work(T* p);
 };
 
+class ShenandoahSemeruEvacuateRootsClosure: public BasicOopIterateClosure {
+private:
+  ShenandoahHeap* _heap;
+  Thread* _thread;
+  size_t _worker_id;
+public:
+  inline ShenandoahSemeruEvacuateRootsClosure(size_t worker_id);
+  inline void do_oop(oop* p);
+  inline void do_oop(narrowOop* p);
+private:
+  template <class T>
+  inline void do_oop_work(T* p);
+};
+
 class ShenandoahEvacuateUpdateRootsClosure: public BasicOopIterateClosure {
 private:
   ShenandoahHeap* _heap;

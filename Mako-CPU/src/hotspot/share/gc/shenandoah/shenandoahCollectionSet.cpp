@@ -97,9 +97,9 @@ void ShenandoahCollectionSet::add_region(ShenandoahHeapRegion* r) {
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");
   assert(Thread::current()->is_VM_thread(), "Must be VMThread");
   assert(!is_in_update_set(r), "Already in collection set");
-#ifdef RELEASE_CHECK
-  tty->print("Add region %lu to cset\n", r->region_number());
-#endif
+// #ifdef RELEASE_CHECK
+//   tty->print("Add region %lu to cset\n", r->region_number());
+// #endif
   // _cset_map[r->region_number()] = 1;
   _cset_map[r->region_number()] = 3;
   // _cset_map[_heap->get_corr_region(r->region_number())->region_number()] = 1;
@@ -114,7 +114,7 @@ void ShenandoahCollectionSet::add_region_to_update(ShenandoahHeapRegion* r) {
   assert(Thread::current()->is_VM_thread(), "Must be VMThread");
   assert(!is_in_update_set(r), "Already in collection set");
   // _cset_map[r->region_number()] = 1;
-  _cset_map[r->region_number()] = 1;
+  _cset_map[r->region_number()] |= 1;
 }
 
 bool ShenandoahCollectionSet::add_region_check_for_duplicates(ShenandoahHeapRegion* r) {
@@ -235,68 +235,90 @@ bool ShenandoahCollectionSet::select_local_process_regions() {
 
   return true;
 
-  assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");
+  // assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");
 
+  // size_t num_regions = _heap->num_regions();
+  // size_t cand_idx = 0;
+
+  // ShenandoahMarkingContext* const ctx = _heap->complete_marking_context();
+
+  // for (size_t i = 0; i < num_regions; i++) {
+  //   if(!is_in_update_set(i)) continue;
+  //   if(is_in_local_update_set(i)) continue;
+  //   ShenandoahHeapRegion* region = _heap->get_region(i);
+  //   if (region->is_humongous_start()) {
+  //     oop obj = (oop)(region->bottom());
+  //     assert(_heap->marking_context()->is_marked(obj), "Must be alive!");
+  //     _region_data[cand_idx]._region = region;
+  //     size_t obj_size_in_bytes = (obj->size()) * HeapWordSize;
+  //     size_t num_regions = ShenandoahHeapRegion::required_regions(obj_size_in_bytes);
+  //     _region_data[cand_idx]._cache_pages = (uint)(_heap->cache_size_in_bytes(region->bottom(), num_regions * ShenandoahHeapRegion::region_size_bytes())/4096);
+  //     _region_data[cand_idx]._total_pages = (uint)(num_regions * (ShenandoahHeapRegion::region_size_bytes()/4096));
+  //     _region_data[cand_idx]._cache_ratio = _region_data[cand_idx]._cache_pages/_region_data[cand_idx]._total_pages;
+  //     cand_idx ++;
+  //   } else if(!region->is_humongous_continuation()) {
+  //     assert(region->has_live(), "Otherwise should not be in update set!");
+  //     _region_data[cand_idx]._region = region;
+  //     _region_data[cand_idx]._cache_pages = (uint)(_heap->cache_size_in_bytes(i)/4096);
+  //     _region_data[cand_idx]._total_pages = (uint)(ShenandoahHeapRegion::region_size_bytes()/4096);
+  //     _region_data[cand_idx]._cache_ratio = _region_data[cand_idx]._cache_pages/_region_data[cand_idx]._total_pages;
+  //     cand_idx ++;
+  //   } else {
+  //     assert(region->is_humongous_continuation(), "Test!");
+  //   }
+  // }
+
+  // // Better select cache-first regions
+  // QuickSort::sort<RegionCacheData>(_region_data, (int)cand_idx, compare_by_cache, false);
+
+  // size_t capacity    = ShenandoahHeap::heap()->max_capacity();
+  // size_t target = capacity / 100 * ShenandoahLocalProcessingRatio / 4096;
+
+  // size_t cur_pages = _local_pages;
+
+  // for (size_t idx = 0; idx < cand_idx; idx++) {
+  //   ShenandoahHeapRegion* r = _region_data[idx]._region;
+  //   size_t region_index = r->region_number();
+
+
+  //   size_t new_pages = cur_pages;
+  //   if(is_in_evac_set(region_index))
+  //     new_pages += _region_data[idx]._total_pages + align_up(r->get_live_data_bytes(), 4096)/4096;
+  //   else
+  //     new_pages += _region_data[idx]._total_pages;
+
+  //   if(new_pages > target){
+  //     if(new_pages - target < target - cur_pages) {
+  //       _sync_map[region_index] |= 4;
+  //       _cset_map[region_index] |= 4;
+  //     }
+  //     return true;
+  //   }
+  //   _sync_map[region_index] |= 4;
+  //   _cset_map[region_index] |= 4;
+  //   cur_pages = new_pages;
+  // }
+  // return true;
+}
+
+// Haoran: decide which regions are processed by the CPU server and which regions are processed by the memory server
+bool ShenandoahCollectionSet::select_local_update_regions() {
+  // if(_heap->gc_start_threshold > _heap->max_capacity() * (ShenandoahInitFreeThreshold - 1) / 100) {
+  //   size_t num_regions = _heap->num_regions();
+  //   for (size_t i = 0; i < num_regions; i++) {
+  //     if(!is_in_update_set(i)) continue;
+  //     ShenandoahHeapRegion* region = _heap->get_region(i);
+  //     _cset_map[i] |= 4;
+  //   }
+  //   return false;
+  // }
   size_t num_regions = _heap->num_regions();
-  size_t cand_idx = 0;
-
-  ShenandoahMarkingContext* const ctx = _heap->complete_marking_context();
-
   for (size_t i = 0; i < num_regions; i++) {
     if(!is_in_update_set(i)) continue;
-    if(is_in_local_update_set(i)) continue;
     ShenandoahHeapRegion* region = _heap->get_region(i);
-    if (region->is_humongous_start()) {
-      oop obj = (oop)(region->bottom());
-      assert(_heap->marking_context()->is_marked(obj), "Must be alive!");
-      _region_data[cand_idx]._region = region;
-      size_t obj_size_in_bytes = (obj->size()) * HeapWordSize;
-      size_t num_regions = ShenandoahHeapRegion::required_regions(obj_size_in_bytes);
-      _region_data[cand_idx]._cache_pages = (uint)(_heap->cache_size_in_bytes(region->bottom(), num_regions * ShenandoahHeapRegion::region_size_bytes())/4096);
-      _region_data[cand_idx]._total_pages = (uint)(num_regions * (ShenandoahHeapRegion::region_size_bytes()/4096));
-      _region_data[cand_idx]._cache_ratio = _region_data[cand_idx]._cache_pages/_region_data[cand_idx]._total_pages;
-      cand_idx ++;
-    } else if(!region->is_humongous_continuation()) {
-      assert(region->has_live(), "Otherwise should not be in update set!");
-      _region_data[cand_idx]._region = region;
-      _region_data[cand_idx]._cache_pages = (uint)(_heap->cache_size_in_bytes(i)/4096);
-      _region_data[cand_idx]._total_pages = (uint)(ShenandoahHeapRegion::region_size_bytes()/4096);
-      _region_data[cand_idx]._cache_ratio = _region_data[cand_idx]._cache_pages/_region_data[cand_idx]._total_pages;
-      cand_idx ++;
-    } else {
-      assert(region->is_humongous_continuation(), "Test!");
-    }
-  }
-
-  // Better select cache-first regions
-  QuickSort::sort<RegionCacheData>(_region_data, (int)cand_idx, compare_by_cache, false);
-
-  size_t capacity    = ShenandoahHeap::heap()->max_capacity();
-  size_t target = capacity / 100 * ShenandoahLocalProcessingRatio / 4096;
-
-  size_t cur_pages = _local_pages;
-
-  for (size_t idx = 0; idx < cand_idx; idx++) {
-    ShenandoahHeapRegion* r = _region_data[idx]._region;
-    size_t region_index = r->region_number();
-
-
-    size_t new_pages = cur_pages;
-    if(is_in_evac_set(region_index))
-      new_pages += _region_data[idx]._total_pages + align_up(r->get_live_data_bytes(), 4096)/4096;
-    else
-      new_pages += _region_data[idx]._total_pages;
-
-    if(new_pages > target){
-      if(new_pages - target < target - cur_pages) {
-        _sync_map[region_index] |= 4;
-        _cset_map[region_index] |= 4;
-      }
-      return true;
-    }
-    _sync_map[region_index] |= 4;
-    _cset_map[region_index] |= 4;
-    cur_pages = new_pages;
+    unsigned char mask = 0xFF;
+    mask ^= 4;
+    _cset_map[i] &= mask;
   }
   return true;
 }
@@ -531,4 +553,15 @@ void ShenandoahCollectionSet::set_update_finished(size_t region_number) {
   assert(region_number < _heap->num_regions(), "Sanity");
   char v = Atomic::load(&_cset_map[region_number]);
   Atomic::store((char)(v | 8), &_cset_map[region_number]);
+}
+
+bool ShenandoahCollectionSet::is_evac_finished(size_t region_number) const {
+  assert(region_number < _heap->num_regions(), "Sanity");
+  return (Atomic::load(&_cset_map[region_number]) & 16);
+}
+
+void ShenandoahCollectionSet::set_evac_finished(size_t region_number) {
+  assert(region_number < _heap->num_regions(), "Sanity");
+  char v = Atomic::load(&_cset_map[region_number]);
+  Atomic::store((char)(v | 16), &_cset_map[region_number]);
 }
