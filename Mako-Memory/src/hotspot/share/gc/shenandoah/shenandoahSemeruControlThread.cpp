@@ -284,6 +284,7 @@ void ShenandoahSemeruControlThread::service_concurrent_normal_cycle(GCCause::Cau
   heap->_mem_server_flags->_tracing_finished = false;
   // Modified by Haoran for remote compaction
   heap->_mem_server_flags->evacuation_finished = false;
+  heap->_mem_server_flags->update_finished = false;
 
   tty->print("tracing all finished before init_mark: %d, tracing_current_cycle_processing %d\n", heap->_cpu_server_flags->_tracing_all_finished, heap->_tracing_current_cycle_processing->get_byte_flag());
   heap->entry_init_mark();
@@ -360,6 +361,11 @@ void ShenandoahSemeruControlThread::service_concurrent_normal_cycle(GCCause::Cau
 
 
     heap->collection_set()->copy_sync_to_cset();
+    for(size_t i = 0; i < heap->num_regions(); i++) {
+      if(heap->collection_set()->is_in_evac_set(i) && heap->collection_set()->is_in_remote_update_set(i)){
+        tty->print("Remote evac region_number: %lu\n", i);
+      }
+    }
     
     // Concurrently compact objects
     heap->entry_evac();
@@ -371,6 +377,25 @@ void ShenandoahSemeruControlThread::service_concurrent_normal_cycle(GCCause::Cau
   else {
     log_debug(semeru)("No CSET, skip evacuation!");
   }
+
+  while(heap->_cpu_server_flags->_should_start_update == false && heap->_cpu_server_flags->_update_all_finished == false) {
+    os::naked_short_sleep(10);
+  }
+
+  log_debug(semeru)("Start evacuation!");
+
+  if(heap->_cpu_server_flags->_update_all_finished == false) {
+    heap->_mem_server_flags->_tracing_finished = false;
+    heap->collection_set()->copy_sync_to_cset();
+    // Concurrently compact objects
+    heap->entry_updaterefs();
+    heap->_mem_server_flags->update_finished = true;
+    log_debug(semeru)("Finish updaterefs!");
+  }
+  else {
+    log_debug(semeru)("No UpdateSET, skip updaterefs!");
+  }
+  
   heap->_mem_server_flags->_tracing_finished = false;
   // heap->reset_offset_table();
 }

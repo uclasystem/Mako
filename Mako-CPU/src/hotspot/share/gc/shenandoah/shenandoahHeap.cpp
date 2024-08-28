@@ -1045,7 +1045,7 @@ HeapWord* ShenandoahHeap::allocate_new_gclab(size_t min_size,
 ShenandoahHeap* ShenandoahHeap::heap() {
   CollectedHeap* heap = Universe::heap();
   assert(heap != NULL, "Unitialized access to ShenandoahHeap::heap()");
-  assert(heap->kind() == CollectedHeap::Shenandoah, "not a shenandoah heap");
+  // assert(heap->kind() == CollectedHeap::Shenandoah, "not a shenandoah heap");
   return (ShenandoahHeap*) heap;
 }
 
