@@ -78,6 +78,53 @@ void ShenandoahUpdateRefsClosure::do_oop_work(T* p) {
 void ShenandoahUpdateRefsClosure::do_oop(oop* p)       { do_oop_work(p); }
 void ShenandoahUpdateRefsClosure::do_oop(narrowOop* p) { do_oop_work(p); }
 
+ShenandoahSemeruEvacuateRootsClosure::ShenandoahSemeruEvacuateRootsClosure(size_t worker_id) :
+  _heap(ShenandoahHeap::heap()), _thread(Thread::current()), _worker_id(worker_id) {
+}
+
+template <class T>
+void ShenandoahSemeruEvacuateRootsClosure::do_oop_work(T* p) {
+  assert(_heap->is_evacuation_in_progress(), "Only do this when evacuation is in progress");
+  T o = RawAccess<>::oop_load(p);
+  if (! CompressedOops::is_null(o)) {
+    oop obj = CompressedOops::decode_not_null(o);
+    assert(Universe::heap()->is_in(obj), "wrong invariant");
+    if (_heap->in_evac_set(obj)) {
+      shenandoah_assert_marked(p, obj);
+#ifdef RELEASE_CHECK
+      if(!_heap->marking_context()->is_marked(obj)) {
+        tty->print("Obj: 0x%lx not marked!\n", (size_t)obj);
+        // ShouldNotReachHere();
+      }
+#endif
+      oop resolved = ShenandoahForwarding::get_forwardee(obj);
+      if (oopDesc::equals_raw(resolved, obj)) {
+        resolved = _heap->evac_root(obj, _thread, _worker_id);
+        _heap->heap_region_containing(resolved)->_selected_to = true;
+      }
+      assert(Universe::heap()->is_in(resolved), "wrong invariant");
+
+      assert(resolved != NULL, "Invariant!");
+      assert(_heap->heap_region_containing(resolved) != _heap->heap_region_containing(obj)  , "Invariant!");
+#ifdef RELEASE_CHECK
+      if(_heap->in_evac_set(resolved)) {
+        tty->print("Resolved obj: 0x%lx is still in evac set! Original obj: 0x%lx\n", (size_t)resolved, (size_t)obj);
+        ShouldNotReachHere();
+      }
+#endif
+      RawAccess<IS_NOT_NULL>::oop_store(p, resolved);
+      
+    }
+  }
+}
+void ShenandoahSemeruEvacuateRootsClosure::do_oop(oop* p) {
+  do_oop_work(p);
+}
+
+void ShenandoahSemeruEvacuateRootsClosure::do_oop(narrowOop* p) {
+  do_oop_work(p);
+}
+
 ShenandoahEvacuateUpdateRootsClosure::ShenandoahEvacuateUpdateRootsClosure(size_t worker_id) :
   _heap(ShenandoahHeap::heap()), _thread(Thread::current()), _worker_id(worker_id) {
 }
@@ -94,28 +141,15 @@ void ShenandoahEvacuateUpdateRootsClosure::do_oop_work(T* p) {
     // if (_heap->in_collection_set(obj)) 
     if (_heap->in_evac_set(obj)) {
       shenandoah_assert_marked(p, obj);
-      // if(!_heap->marking_context()->is_marked(obj)) {
-      //   for(size_t id = 0; id < _heap->root_object_queue()->length(); id++) {
-      //     if((HeapWord*)obj == _heap->root_object_queue()->retrieve_item(id)) {
-      //       tty->print("Found obj in root object queue: 0x%lx not marked!\n", (size_t)obj);
-      //       break;
-      //     }
-      //   }
-      //   tty->print("Obj: 0x%lx not marked!\n", (size_t)obj);
-      // }
 #ifdef RELEASE_CHECK
       if(!_heap->marking_context()->is_marked(obj)) {
         tty->print("Obj: 0x%lx not marked!\n", (size_t)obj);
         // ShouldNotReachHere();
       }
 #endif
-      // if()
-      // oop resolved = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
       oop resolved = ShenandoahForwarding::get_forwardee(obj);
       if (oopDesc::equals_raw(resolved, obj)) {
-        resolved = _heap->evacuate_root(obj, _thread, _worker_id);
-
-        // _heap->root_object_queue()->push(resolved);
+        resolved = _heap->evacup_root(obj, _thread, _worker_id);
         _heap->heap_region_containing(resolved)->_selected_to = true;
       }
       assert(Universe::heap()->is_in(resolved), "wrong invariant");
@@ -150,45 +184,27 @@ template <class T>
 void ShenandoahSemeruUpdateRootsClosure::do_oop_work(T* p) {
   // ShouldNotCallThis();
   assert(_heap->is_evacuation_in_progress(), "Only do this when evacuation is in progress");
-
   T o = RawAccess<>::oop_load(p);
   if (! CompressedOops::is_null(o)) {
     oop obj = CompressedOops::decode_not_null(o);
     assert(Universe::heap()->is_in(obj), "wrong invariant");
-    
-    // shenandoah_assert_marked(p, obj);
     assert(!_heap->in_evac_set(obj), "Should have been evacuated and updated!");
-#ifdef RELEASE_CHECK
+
     if(_heap->in_evac_set(obj)) {
-      ShouldNotReachHere();
-    }
+      oop fwd = ShenandoahForwarding::get_forwardee(obj);
+#ifdef RELEASE_CHECK
+      if (_heap->in_evac_set(fwd)) {
+        log_debug(semeru)("In update refs, Fwd: 0x%lx is still in evac set! Original obj: 0x%lx\n", (size_t)fwd, (size_t)obj);
+        ShouldNotReachHere();
+      }
+      log_debug(semeru)("!!During init update refs, there are objects pointing to evac set obj: 0x%lx in evac set region: %lu!\n", (size_t)obj, _heap->heap_region_index_containing(obj));
 #endif
+      obj = fwd;
+      RawAccess<IS_NOT_NULL>::oop_store(p, obj);
+    }
+
     _heap->update_object(obj);
-    
-    // if(!r->_selected_to && !_heap->collection_set()->is_in_local_update_set(r->region_number())) {
-    //   _heap->collection_set()->add_region_to_local_set(r->region_number());
-    // }
-    // HeapWord* to = _heap->heap_region_containing(obj)->offset_table()->get((HeapWord*)obj);
-    // HeapWord* to = (HeapWord*)_heap->alive_table()->get_target_address(obj);
-    // assert(to != NULL, "Invariant!");
-    // assert(_heap->heap_region_containing(to) != _heap->heap_region_containing(obj)  , "Invariant!");
-    // assert((HeapWord*)to <= (HeapWord*)obj, "Invariant!!!");
-    // RawAccess<IS_NOT_NULL>::oop_store(p, (oop)to);
-    
-    
-    // oop forwarded_oop = ShenandoahForwarding::get_forwardee(obj);
-    // if(forwarded_oop != obj){
-    //   RawAccess<IS_NOT_NULL>::oop_store(p, forwarded_oop);
-    //   _heap->heap_region_containing(obj)->offset_table()->subtract_root_offset((HeapWord*)obj); // Might be multithreaded.
-    // }
-    // size_t old_mark = (size_t)forwarded_oop->mark_raw();
-    // size_t new_mark = (old_mark | (1<<7));
-    // if(old_mark != new_mark) {
-    //   size_t result = Atomic::cmpxchg(new_mark, (size_t*)(forwarded_oop->mark_addr_raw()), old_mark);
-    //   if(result == old_mark) {
-    //     _heap->update_root(forwarded_oop);
-    //   }
-    // }
+    _heap->collection_set()->add_region_to_local_set(_heap->heap_region_index_containing(obj));
   }
 }
 void ShenandoahSemeruUpdateRootsClosure::do_oop(oop* p) {

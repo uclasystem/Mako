@@ -494,6 +494,10 @@ class flags_of_cpu_server_state : public CHeapRDMAObj<flags_of_cpu_server_state>
     volatile bool _evacuation_all_finished;
 
 
+    volatile bool _should_start_update;
+    volatile bool _update_all_finished;
+
+
 	public :
 		flags_of_cpu_server_state();
 
@@ -529,6 +533,7 @@ class flags_of_mem_server_state : public CHeapRDMAObj<flags_of_mem_server_state>
 
     // Modified by Haoran for remote compaction
     volatile bool evacuation_finished;
+    volatile bool update_finished;
 
     // Thread same structure
     // Add a Region into the queue ONLY when its compaction is finished.

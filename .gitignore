@@ -5,3 +5,5 @@ Mako-CPU/dacapo-9.12-MR1-bach.jar
 kernel/.tmp_kallsyms*.S
 .vscode
 scratch/
+hs_err_pid*.log
+replay_pid*.log
