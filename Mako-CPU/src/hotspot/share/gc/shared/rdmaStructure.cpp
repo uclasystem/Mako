@@ -75,7 +75,9 @@ _cpu_server_data_sent(false),
 _should_start_tracing(false),
 _tracing_all_finished(false),
 _should_start_evacuation(false),
-_evacuation_all_finished(false)
+_evacuation_all_finished(false),
+_should_start_update(false),
+_update_all_finished(false)
 {
 	
 	// debug
@@ -92,6 +94,7 @@ _tracing_finished(false), //useless
 _mem_server_wait_on_data_exchange(false), //useless
 _is_mem_server_in_compact(false),//useless
 evacuation_finished(false), // Modified by Haoran for remote compaction
+update_finished(false), // Modified by Haoran for remote compaction
 _compacted_region_length(0) //useless
 {
 	

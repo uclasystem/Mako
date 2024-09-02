@@ -1129,20 +1129,19 @@ public:
     if(ShenandoahForwarding::is_forwarded(p)) {
       // Have been evacuated by roots
       size_t size = (size_t) p->size();
-      
-      assert(_heap->alive_table()->get_target_address(p) != ShenandoahForwarding::get_forwardee(p), "Invariant!");
-#ifdef RELEASE_CHECK
       oop orig_target_obj = _heap->alive_table()->get_target_address(p);
+      assert(orig_target_obj != ShenandoahForwarding::get_forwardee(p), "Invariant!");
+#ifdef RELEASE_CHECK
       if(orig_target_obj == ShenandoahForwarding::get_forwardee(p)) {
         ShouldNotReachHere();
       }
 #endif
+      // _heap->fill_with_object((HeapWord*)orig_target_obj, ((HeapWord*)orig_target_obj) + size);
       // _heap->fill_with_dummy_object((HeapWord*)orig_target_obj, ((HeapWord*)orig_target_obj) + size);
     }
     else {
       oop new_p = _heap->evacuate_object(p, _thread);
-      // _heap->evacuate_object(p, _thread);
-      _heap->update_object(new_p);
+      // tty->print("evacuate object 0x%0llx to 0x%llx\n", (unsigned long long)p, (unsigned long long)new_p);
     }
     // }
   }
@@ -1340,7 +1339,6 @@ private:
     // Modified by Haoran for compaction
     // ShouldNotCallThis();
     ShenandoahSemeruConcurrentEvacuateRegionObjectClosure cl(_sh);
-    ShenandoahSemeruConcurrentUpdateRegionObjectClosure update_cl(_sh);
     ShenandoahSemeruHeapRegion* r;
 
     // Modified by Haoran for remote compaction
@@ -1348,6 +1346,7 @@ private:
       // Modified by Haoran for remote compaction
       // assert(r->has_live(), "all-garbage regions are reclaimed early");
       if(_cs->is_in_evac_set(r)) {
+        tty->print("Region %lu is claimed by worker\n", r->region_number());
         
         assert(r->top() > r->bottom(), "all-garbage regions are reclaimed early");
         r->_evac_top = r->bottom();
@@ -1358,15 +1357,15 @@ private:
         log_debug(semeru)("Finish compaction updating for region %lu", r->region_number());
 #endif
       }
-      else if(_cs->is_in_update_set(r)) {
-        assert(!_cs->is_in_evac_set(r->region_number()), "Invariant!");
-        assert(r->top() > r->bottom(), "all-garbage regions are reclaimed early");
-        // assert(r->is_humongous_continuation(), "Invariant!");
-        _sh->marked_object_iterate(r, &update_cl);
-#ifdef DEBUG_PRINT
-        log_debug(semeru)("Finish updating for region %lu", r->region_number());
-#endif
-      }
+//       else if(_cs->is_in_update_set(r)) {
+//         assert(!_cs->is_in_evac_set(r->region_number()), "Invariant!");
+//         assert(r->top() > r->bottom(), "all-garbage regions are reclaimed early");
+//         // assert(r->is_humongous_continuation(), "Invariant!");
+//         _sh->marked_object_iterate(r, &update_cl);
+// #ifdef DEBUG_PRINT
+//         log_debug(semeru)("Finish updating for region %lu", r->region_number());
+// #endif
+//       }
     }
   }
 };
@@ -2473,58 +2472,60 @@ ShenandoahVerifier* ShenandoahSemeruHeap::verifier() {
   return _verifier;
 }
 
-// template<class T>
-// class ShenandoahSemeruUpdateHeapRefsTask : public AbstractGangTask {
-// private:
-//   T cl;
-//   ShenandoahSemeruHeap* _heap;
-//   ShenandoahSemeruRegionIterator* _regions;
-//   bool _concurrent;
-// public:
-//   ShenandoahSemeruUpdateHeapRefsTask(ShenandoahSemeruRegionIterator* regions, bool concurrent) :
-//     AbstractGangTask("Concurrent Update References Task"),
-//     cl(T()),
-//     _heap(ShenandoahSemeruHeap::heap()),
-//     _regions(regions),
-//     _concurrent(concurrent) {
-//   }
 
-//   void work(uint worker_id) {
-//     if (_concurrent) {
-//       ShenandoahConcurrentWorkerSession worker_session(worker_id);
-//       ShenandoahSuspendibleThreadSetJoiner stsj(ShenandoahSuspendibleWorkers);
-//       do_work();
-//     } else {
-//       ShenandoahParallelWorkerSession worker_session(worker_id);
-//       do_work();
-//     }
-//   }
+class ShenandoahSemeruUpdateHeapRefsTask : public AbstractGangTask {
+private:
+  ShenandoahSemeruHeap* const _sh;
+  ShenandoahSemeruCollectionSet* const _cs;
+  bool _concurrent;
+public:
+  ShenandoahSemeruUpdateHeapRefsTask(ShenandoahSemeruHeap* sh,
+                           ShenandoahSemeruCollectionSet* cs,
+                           bool concurrent) :
+    AbstractGangTask("Concurrent Update References Task"),
+    _sh(sh),
+    _cs(cs),
+    _concurrent(concurrent)
+  {}
 
-// private:
-//   void do_work() {
-//     ShenandoahSemeruHeapRegion* r = _regions->next();
-//     ShenandoahMarkingContext* const ctx = _heap->complete_marking_context();
-//     while (r != NULL) {
-//       HeapWord* top_at_start_ur = r->concurrent_iteration_safe_limit();
-//       assert (top_at_start_ur >= r->bottom(), "sanity");
-//       if (r->is_active() && !r->is_cset()) {
-//         _heap->marked_object_oop_iterate(r, &cl, top_at_start_ur);
-//       }
-//       if (ShenandoahPacing) {
-//         _heap->pacer()->report_updaterefs(pointer_delta(top_at_start_ur, r->bottom()));
-//       }
-//       if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
-//         return;
-//       }
-//       r = _regions->next();
-//     }
-//   }
-// };
+  void work(uint worker_id) {
+    if (_concurrent) {
+      ShenandoahConcurrentWorkerSession worker_session(worker_id);
+      ShenandoahSuspendibleThreadSetJoiner stsj(ShenandoahSuspendibleWorkers);
+      do_work();
+    } else {
+      ShenandoahParallelWorkerSession worker_session(worker_id);
+      do_work();
+    }
+  }
+
+private:
+  void do_work() {
+    ShenandoahSemeruConcurrentUpdateRegionObjectClosure update_cl(_sh);
+    ShenandoahSemeruHeapRegion* r;
+    // Modified by Haoran for remote compaction
+    while ((r =_cs->claim_next()) != NULL) {
+      if(_cs->is_in_evac_set(r)) {
+#ifdef DEBUG_PRINT
+        log_debug(semeru)("Skip updating for region %lu", r->region_number());
+#endif
+      }
+      else if(_cs->is_in_update_set(r)) {
+        assert(!_cs->is_in_evac_set(r->region_number()), "Invariant!");
+        assert(r->top() > r->bottom(), "all-garbage regions are reclaimed early");
+        // assert(r->is_humongous_continuation(), "Invariant!");
+        _sh->marked_object_iterate(r, &update_cl);
+#ifdef DEBUG_PRINT
+        log_debug(semeru)("Finish updating for region %lu", r->region_number());
+#endif
+      }
+    }
+  }
+};
 
 void ShenandoahSemeruHeap::update_heap_references(bool concurrent) {
-  ShouldNotCallThis();
-  // ShenandoahSemeruUpdateHeapRefsTask<ShenandoahUpdateHeapRefsClosure> task(&_update_refs_iterator, concurrent);
-  // workers()->run_task(&task);
+  ShenandoahSemeruUpdateHeapRefsTask task(this, _collection_set, concurrent);
+  workers()->run_task(&task);
 }
 
 void ShenandoahSemeruHeap::op_init_updaterefs() {

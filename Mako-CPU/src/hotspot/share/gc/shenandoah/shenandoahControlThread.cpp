@@ -418,9 +418,8 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
 
   log_debug(semeru)("CPU Server Finishes Final Marking!");
   if(!heap->collection_set()->is_empty()) {
-    heap->update_root_objects();
 
-    heap->write_data_after_final_mark();
+    // heap->write_data_after_final_mark();
     heap->entry_evac();
     log_debug(semeru)("Finish Evac Local!");
     while(true) {
@@ -437,7 +436,40 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
       os::naked_short_sleep(10);
     }
     log_debug(semeru)("Finish Evac Remote!");
+
+
     ShenandoahCollectionSet* cset = heap->collection_set();
+    for(size_t i = 0; i < heap->num_regions(); i ++) {
+      if(cset->is_in_evac_set(i)) {
+        cset->set_evac_finished(i);
+      }
+    }
+
+
+    // Complete evacuation and start reference updating
+    heap->vmop_entry_init_updaterefs();
+    // heap->update_root_objects();
+    // heap->write_data_after_final_mark();
+
+    heap->entry_updaterefs();
+
+
+    while(true) {
+      int i = 0;
+      for(i = 0; i < NUM_OF_MEMORY_SERVER; i ++) {
+        syscall(RDMA_READ, i, heap->_mem_server_flags, RDMA_FLAG_PER_SIZE); // must be read first
+        // assure_read(0);
+        // log_debug(semeru)("Server id: %d, _evacuation_finished: %d", 0, _mem_server_flags->evacuation_finished);
+        if(!heap->_mem_server_flags->update_finished)
+          break;
+      }
+      if(i == NUM_OF_MEMORY_SERVER)
+        break;
+      os::naked_short_sleep(10);
+    }
+    log_debug(semeru)("Finish Update Remote!");
+
+
     for(size_t i = 0; i < heap->num_regions(); i ++) {
       if(cset->is_in_update_set(i)) {
         cset->set_update_finished(i);
@@ -448,8 +480,6 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
 
     heap->vmop_entry_final_evac();
   }
-  
-
 
   // Final mark might have reclaimed some immediate garbage, kick cleanup to reclaim
   // the space. This would be the last action if there is nothing to evacuate.
@@ -459,55 +489,6 @@ void ShenandoahControlThread::service_concurrent_normal_cycle(GCCause::Cause cau
     ShenandoahHeapLocker locker(heap->lock());
     heap->free_set()->log_status();
   }
-
-  // // Continue the cycle with evacuation and optional update-refs.
-  // // This may be skipped if there is nothing to evacuate.
-  // // If so, evac_in_progress would be unset by collection set preparation code.
-  // if (heap->is_evacuation_in_progress()) {
-  //   // Concurrently evacuate
-
-  //   // Modified by Haoran for remote compaction
-  //   // heap->entry_evac();
-  //   while(true) {
-  //     int i = 0;
-  //     for(i = 0; i < NUM_OF_MEMORY_SERVER; i ++) {
-  //       syscall(RDMA_READ, i, heap->_mem_server_flags, RDMA_FLAG_PER_SIZE); // must be read first
-  //       heap->assure_read(0);
-  //       log_debug(semeru)("Server id: %d, _evacuation_finished: %d", 0, heap->_mem_server_flags->evacuation_finished);
-  //       if(!heap->_mem_server_flags->evacuation_finished)
-  //         break;
-  //     }
-  //     if(i == NUM_OF_MEMORY_SERVER)
-  //       break;
-  //     os::naked_short_sleep(100);
-  //   }
-
-    
-  //   if (check_cancellation_or_degen(ShenandoahHeap::_degenerated_evac)) return;
-
-  //   // Perform update-refs phase, if required. This phase can be skipped if heuristics
-  //   // decides to piggy-back the update-refs on the next marking cycle. On either path,
-  //   // we need to turn off evacuation: either in init-update-refs, or in final-evac.
-  //   if (heap->heuristics()->should_start_update_refs()) {
-  //     // Haoran: should go this branch
-  //     // heap->vmop_entry_init_updaterefs();
-
-  //     // Modified by Haoran
-  //     // heap->entry_updaterefs();
-  //     // if (check_cancellation_or_degen(ShenandoahHeap::_degenerated_updaterefs)) return;
-
-  //     heap->vmop_entry_final_updaterefs();
-
-  //     // Update references freed up collection set, kick the cleanup to reclaim the space.
-  //     heap->entry_cleanup();
-
-  //   } else {
-  //     // Modified by Haoran
-  //     ShouldNotReachHere();
-  //     heap->vmop_entry_final_evac();
-  //   }
-  // }
-
   // Cycle is complete
   heap->heuristics()->record_success_concurrent();
   heap->shenandoah_policy()->record_success_concurrent();

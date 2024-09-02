@@ -336,7 +336,17 @@ bool ShenandoahBarrierSet::arraycopy_element(T* cur_src, T* cur_dst, Klass* boun
 // Clone barrier support
 template <DecoratorSet decorators, typename BarrierSetT>
 void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
-  Raw::clone(src, dst, size);
+  Thread *t = Thread::current();
+  oop new_src = ShenandoahHeap::heap()->wait_region(src, t);
+  oop new_dst = ShenandoahHeap::heap()->wait_region(dst, t);
+  if (new_src != src) {
+    log_debug(semeru)("Clone barrier: change src: 0x%lx -> 0x%lx", (size_t)src, (size_t)new_src);
+  }
+  if (new_dst != dst) {
+    log_debug(semeru)("Clone barrier: change dst: 0x%lx -> 0x%lx", (size_t)dst, (size_t)new_dst);
+    ShouldNotReachHere();
+  }
+  Raw::clone(new_src, new_dst, size);
   ShenandoahBarrierSet::barrier_set()->write_region(MemRegion((HeapWord*) dst, size));
 }
 

@@ -60,17 +60,28 @@ private:
         _bs->enqueue(o);
       }
     } else {
+
       T o = RawAccess<>::oop_load(p);
       if (!CompressedOops::is_null(o)) {
         oop obj = CompressedOops::decode_not_null(o);
-        assert(!_heap->in_evac_set((HeapWord*)obj), "wrong invariant");
+        if(_heap->_cpu_server_flags->_should_start_update == true) {
+          assert(!_heap->in_evac_set((HeapWord*)obj), "wrong invariant");
 #ifdef RELEASE_CHECK
-        if(_heap->in_evac_set((HeapWord*)obj)) {
-          ShouldNotReachHere();
-        }
+          if(_heap->in_evac_set((HeapWord*)obj)) {
+            log_debug(semeru)("cloned during conc update and has ref point to evac set obj: 0x%lx", (size_t)obj);
+            ShouldNotReachHere();
+          }
 #endif
+        } else {
+
+          if(_heap->in_evac_set((HeapWord*)obj)) {
+            _heap->wait_region(obj, Thread::current());
+            log_debug(semeru)("cloned during evac and has ref point to evac set obj: 0x%lx", (size_t)obj);
+            _heap->semeru_maybe_update_with_forwarded(p);
+          }
+          // _heap->maybe_update_with_forwarded(p);
+        }
       }
-      // _heap->maybe_update_with_forwarded(p);
     }
   }
 public:
@@ -221,13 +232,16 @@ void ShenandoahBarrierSet::write_region(MemRegion mr) {
   // it would be NULL in any case. But we *are* interested in any oop*
   // that potentially need to be updated.
 
-#ifdef RELEASE_CHECK
   oop obj = oop(mr.start());
+#ifdef RELEASE_CHECK
   shenandoah_assert_correct(NULL, obj);
+#endif
+
+
+  ShenandoahHeap::heap()->wait_region(obj, Thread::current());
 
   ShenandoahUpdateRefsForOopClosure</* evac = */ false> cl;
   obj->oop_iterate(&cl);
-#endif
 }
 
 oop ShenandoahBarrierSet::load_reference_barrier_not_null(oop obj) {
@@ -259,6 +273,7 @@ oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj) {
   Thread* thread = Thread::current();
   // oop res_oop = _heap->evacuate_object(obj, thread);
   oop new_obj = _heap->process_region(obj, thread);
+  // oop new_obj = _heap->wait_region(obj, thread);
 
   // assert(new_obj == obj, "Invariant!");
   assert(!_heap->in_evac_set(new_obj), "Invariant!");
@@ -267,13 +282,13 @@ oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj) {
     tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
     ShouldNotReachHere();
   }
-  if(new_obj != obj) {
-    log_debug(semeru)("Alert!!!!!!!!!! new obj: 0x%lx obj: 0x%lx", (size_t)new_obj, (size_t)obj);
-    tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
-    ShouldNotReachHere();
-  } 
+  // if(new_obj != obj) {
+  //   log_debug(semeru)("Alert!!!!!!!!!! new obj: 0x%lx obj: 0x%lx", (size_t)new_obj, (size_t)obj);
+  //   tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
+  //   ShouldNotReachHere();
+  // } 
 #endif
-  return obj;
+  return new_obj;
 }
 
 void ShenandoahBarrierSet::load_reference_barrier_array_copy(oop* p) {
@@ -281,63 +296,83 @@ void ShenandoahBarrierSet::load_reference_barrier_array_copy(oop* p) {
   assert(ShenandoahLoadRefBarrier, "should be enabled");
   assert(_heap->is_gc_in_progress_mask(ShenandoahHeap::EVACUATION | ShenandoahHeap::TRAVERSAL), "evac should be in progress");
   oop obj = oop(p);
-#ifdef RELEASE_CHECK
-  if(_heap->in_evac_set(obj)) {
-    tty->print("obj: 0x%lx, old_region: %lu, in cset: %d", (size_t)obj, _heap->heap_region_index_containing(obj), _heap->atomic_in_evac_set(obj));
-    ShouldNotReachHere();
-  }
-#endif
-  if(!_heap->is_in((HeapWord*)obj)) {
-    size_t index = 0;
-    while(!_heap->collection_set()->is_in_update_set(index) && index < _heap->num_regions()) {
-      index ++;
-    }
-    if(index == _heap->num_regions()) return;
-    if(!_heap->collection_set()->is_in_update_set(index) || !_heap->is_evacuation_in_progress()) return;
-    while(!_heap->collection_set()->is_update_finished(index)) {
-      os::naked_short_sleep(5);
-    }
-    return;
-  } else{
-    size_t index = _heap->heap_region_index_containing((HeapWord*)obj);
-    if(!_heap->collection_set()->is_in_update_set(index) || !_heap->is_evacuation_in_progress()) return;
-    while(!_heap->collection_set()->is_update_finished(index)) {
-      os::naked_short_sleep(5);
-    }
-  }
+  _heap->wait_region(obj, Thread::current());
+  // if(!_heap->is_in((HeapWord*)obj)) {
+  //   size_t index = 0;
+  //   if(!_heap->is_evacuation_in_progress()) return;
+  //   if(_heap->_cpu_server_flags->_should_start_update == false) {
 
-
+  //     while(index < _heap->num_regions()) {
+  //       if(_heap->collection_set()->is_in_evac_set(index)) {
+  //         while(!_heap->collection_set()->is_evac_finished(index)) {
+  //           os::naked_short_sleep(5);
+  //         }
+  //       }
+  //       index ++;
+  //     }
+  //     return;
+  //   } else {
+  //     while(index < _heap->num_regions()) {
+  //       if(_heap->collection_set()->is_in_update_set(index)) {
+  //         while(!_heap->collection_set()->is_update_finished(index)) {
+  //           os::naked_short_sleep(5);
+  //         }
+  //       }
+  //       index ++;
+  //     }
+  //     return;
+  //   }
+  // } else{
+  //   size_t index = _heap->heap_region_index_containing((HeapWord*)obj);
+  //   if(!_heap->is_evacuation_in_progress()) return;
+  //   if(_heap->_cpu_server_flags->_should_start_update == false) {
+  //     if(!_heap->collection_set()->is_in_evac_set(index)) {
+  //       return;
+  //     }
+  //     // ShouldNotReachHere();
+  //     log_debug(semeru)("Array copy src/dst is in evac set! obj: 0x%lx", (size_t)obj);
+  //     while(!_heap->collection_set()->is_evac_finished(index)) {
+  //       os::naked_short_sleep(5);
+  //     }
+  //   } else {
+  //     if(!_heap->collection_set()->is_in_update_set(index)) return;
+  //     while(!_heap->collection_set()->is_update_finished(index)) {
+  //       os::naked_short_sleep(5);
+  //     }
+  //   }
+  // }
 }
 
 oop ShenandoahBarrierSet::load_reference_barrier_impl(oop obj) {
   assert(ShenandoahLoadRefBarrier, "should be enabled");
-  if (!CompressedOops::is_null(obj)) {
+  // if (!CompressedOops::is_null(obj)) {
     bool evac_in_progress = _heap->is_gc_in_progress_mask(ShenandoahHeap::EVACUATION | ShenandoahHeap::TRAVERSAL);
     oop new_obj = obj;
-    if (evac_in_progress &&
-        _heap->in_update_set(obj)) {
+    // if (evac_in_progress &&
+    //     _heap->in_update_set(obj)) {
+    if (evac_in_progress) {
       //     if(!_heap->in_update_set(obj)) {
       //   log_debug(semeru)("Not in update set! obj: 0x%lx", (size_t)obj);
       //   ShouldNotReachHere();
       // }
       Thread *t = Thread::current();
-      new_obj = _heap->process_region(obj, t);
+      new_obj = _heap->wait_region(obj, t);
     } 
 #ifdef RELEASE_CHECK
     if(_heap->atomic_in_evac_set(new_obj)) {
       tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
       ShouldNotReachHere();
     }
-    if(new_obj != obj) {
-      log_debug(semeru)("Alert!!!!!!!!!! new obj: 0x%lx obj: 0x%lx", (size_t)new_obj, (size_t)obj);
-      tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
-      ShouldNotReachHere();
-    } 
+    // if(new_obj != obj) {
+    //   log_debug(semeru)("Alert!!!!!!!!!! new obj: 0x%lx obj: 0x%lx", (size_t)new_obj, (size_t)obj);
+    //   tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
+    //   ShouldNotReachHere();
+    // } 
 #endif
     return new_obj;     
-  } else {
-    return obj;
-  }
+  // } else {
+  //   return obj;
+  // }
 }
 
 oop ShenandoahBarrierSet::load_reference_barrier_stack_val(oop obj) {
@@ -359,20 +394,18 @@ oop ShenandoahBarrierSet::load_reference_barrier_stack_val(oop obj) {
     ShouldNotReachHere();
   }
 #endif
-  if (_heap->in_update_set(obj)) {
-    Thread *t = Thread::current();
-    new_obj = _heap->process_region(obj, t);
-  } 
+  Thread *t = Thread::current();
+  new_obj = _heap->wait_region(obj, t);
 #ifdef RELEASE_CHECK
   if(_heap->atomic_in_evac_set(new_obj)) {
     tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
     ShouldNotReachHere();
   }
-  if(new_obj != obj) {
-    log_debug(semeru)("Alert!!!!!!!!!! new obj: 0x%lx obj: 0x%lx", (size_t)new_obj, (size_t)obj);
-    tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
-    ShouldNotReachHere();
-  } 
+  // if(new_obj != obj) {
+  //   log_debug(semeru)("Alert!!!!!!!!!! new obj: 0x%lx obj: 0x%lx", (size_t)new_obj, (size_t)obj);
+  //   tty->print("new obj: 0x%lx obj: 0x%lx, old_region: %lu, new_region: %lu, in cset: %d", (size_t)new_obj, (size_t)obj, _heap->heap_region_index_containing(obj),_heap->heap_region_index_containing(new_obj), _heap->atomic_in_evac_set(new_obj));
+  //   ShouldNotReachHere();
+  // } 
 #endif
   return new_obj;     
 }

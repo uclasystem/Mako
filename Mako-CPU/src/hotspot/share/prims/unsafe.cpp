@@ -211,8 +211,20 @@ class MemoryAccess : StackObj {
 public:
   MemoryAccess(JavaThread* thread, jobject obj, jlong offset)
     : _thread(thread), _obj(JNIHandles::resolve(obj)), _offset((ptrdiff_t)offset) {
-    if(ShenandoahHeap::heap()->is_evacuation_in_progress() && ShenandoahHeap::heap()->is_in(_obj) && ShenandoahHeap::heap()->collection_set()->is_in_update_set((HeapWord*)_obj)) {
-      ShenandoahHeap::heap()->process_region(_obj, Thread::current());
+    if(ShenandoahHeap::heap()->is_evacuation_in_progress() && ShenandoahHeap::heap()->is_in(_obj)) {
+      if(ShenandoahHeap::heap()->_cpu_server_flags->_should_start_update == false) {
+        if (ShenandoahHeap::heap()->collection_set()->is_in_evac_set((HeapWord*)_obj)) {
+          ShouldNotReachHere();
+          ShenandoahHeap::heap()->wait_region(_obj, Thread::current());
+        }
+      } else {
+        if(ShenandoahHeap::heap()->collection_set()->is_in_evac_set((HeapWord*)_obj)) {
+          ShouldNotReachHere();
+        } else if(ShenandoahHeap::heap()->collection_set()->is_in_update_set((HeapWord*)_obj)) {
+          log_debug(semeru)("Unsafe access to object in update set, obj: 0x%lx, region: %lu", (size_t)_obj, ShenandoahHeap::heap()->heap_region_index_containing((HeapWord*)_obj));
+          ShenandoahHeap::heap()->wait_region(_obj, Thread::current());
+        }
+      }
     }
     assert_field_offset_sane(_obj, offset);
   }
